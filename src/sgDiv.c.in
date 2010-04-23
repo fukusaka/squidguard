@@ -745,7 +745,7 @@ char *sgParseRedirect(redirect, req, acl, aclpass)
       p++;
       break;
     case 'u': /* Requested URL */
-      strcat(buf, req->orig);
+      strncat(buf, req->orig, 2048);
       p++;
       break;
     default:

@@ -1,0 +1,14 @@
+
+!!! WARNING WARNING WARNING WARNING WARNING  WARNING WARNING WARNING WARNING !!!
+!!!									     !!!
+!!! The blacklists are entierly products of a dumb robot (squidGuardRobot).  !!!
+!!! We recommend that you review the lists before using them.		     !!!
+!!! Don't blame us if there are mistakes, but please report errors	     !!!
+!!! with the online tool at http://www.squidguard.org/blacklist/	     !!!
+!!!									     !!!
+!!! WARNING WARNING WARNING WARNING WARNING  WARNING WARNING WARNING WARNING !!!
+
+To unpack the blacklists run the following command in this directory:
+
+gunzip < blacklists.tar.gz | tar xvpf -
+

@@ -1,0 +1,56 @@
+LYNX	= @LYNX@
+RM = rm -f
+
+
+all update::
+	@echo making $@ in `basename \`pwd\``
+	-mv -f index.html index.html.orig
+	$(LYNX) -source http://www.squidguard.org/ \
+	| sed 's@</HEAD>@<BASE HREF="http://www.squidguard.org/">\
+	 &@' >index.html \
+	|| mv -f index.html.orig index.html
+	test -s index.html || mv -f index.html.orig index.html
+	$(RM) index.html.orig
+	-mv -f installation.html installation.html.orig
+	$(LYNX) -source http://www.squidguard.org/install/ >installation.html \
+	|| mv -f installation.html.orig installation.html
+	$(RM) installation.html.orig
+	-mv -f installation.txt installation.txt.orig
+	$(LYNX) -dump http://www.squidguard.org/install/ >installation.txt \
+	|| mv -f installation.txt.orig installation.txt
+	$(RM) installation.txt.orig
+	-mv -f configuration.html configuration.html.orig
+	$(LYNX) -source http://www.squidguard.org/config/ >configuration.html \
+	|| mv -f configuration.html.orig configuration.html
+	$(RM) configuration.html.orig
+	-mv -f configuration.txt configuration.txt.orig
+	$(LYNX) -dump http://www.squidguard.org/config/ >configuration.txt \
+	|| mv -f configuration.txt.orig configuration.txt
+	$(RM) configuration.txt.orig
+	-mv -f faq.html faq.html.orig
+	$(LYNX) -source http://www.squidguard.org/faq/ >faq.html \
+	|| mv -f faq.html.orig faq.html
+	$(RM) faq.html.orig
+	-mv -f faq.txt faq.txt.orig
+	$(LYNX) -dump http://www.squidguard.org/faq/ >faq.txt \
+	|| mv -f faq.txt.orig faq.txt
+	$(RM) faq.txt.orig
+	-mv -f squidGuard.gif squidGuard.gif.orig
+	$(LYNX) -source http://www.squidguard.org/images/squidGuard.gif >squidGuard.gif \
+	|| mv -f squidGuard.gif.orig squidGuard.gif
+	$(RM) squidGuard.gif.orig
+
+clean::
+	@echo making $@ in `basename \`pwd\``
+	$(RM) *~ *.bak core *.log *.error
+
+realclean:: clean
+	@echo making $@ in `basename \`pwd\``
+	$(RM) TAGS *.orig
+
+distclean:: realclean
+	@echo making $@ in `basename \`pwd\``
+	$(RM) Makefile
+
+install uninstall::
+	@echo making $@ in `basename \`pwd\``

@@ -1,0 +1,228 @@
+AC_INIT(src/main.c)
+AC_CONFIG_HEADER(src/config.h)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_MAKE_SET
+AC_PROG_INSTALL
+AC_PROG_YACC
+AC_PROG_LEX
+AC_PATH_PROG(LYNX,lynx,false,$PATH:/usr/bin:/usr/local/bin/:/local/bin:/local/perl/bin:/usr/local/perl/bin)
+AC_PATH_PROG(PERL,perl,no,$PATH:/usr/bin:/usr/local/bin/:/local/bin:/local/perl/bin:/usr/local/perl/bin)
+if test $PERL = no; then
+	echo
+	echo "** No Perl found in the PATH. Perl is required"
+	echo "   for blocked.cgi to work "
+	echo 
+fi
+
+dbprefix=/usr/local
+
+db_lib=-L$dbprefix/BerkeleyDB/lib
+db_inc=-I$dbprefix/BerkeleyDB/include
+
+AC_ARG_WITH(db,
+	[  --with-db=DIR           location of the Berkley DB distribution],
+                db_distribution=$withval)
+
+if test -n "$db_distribution"; then
+	db_lib="-L${db_distribution}/lib"
+	db_inc="-I${db_distribution}/include"
+fi
+
+AC_ARG_WITH(db_lib,
+	[  --with-db-lib=DIR       location of the Berkley DB library],
+                [db_lib="-L${withval}"])
+AC_ARG_WITH(db_inc,
+	[  --with-db-inc=DIR       location of the Berkley DB include files],
+                [db_inc="-I${withval}"])
+
+AC_ARG_WITH(sg_config,
+	[  --with-sg-config=FILE    location of squidGuard config file],
+                sg_config=$withval)
+
+AC_ARG_WITH(sg_logdir,
+	[  --with-sg-logdir=DIR     location of squidGuard log file],
+                sg_logdir=$withval)
+
+AC_ARG_WITH(sg_dbhome,
+	[  --with-sg-dbhome=DIR     location of squidGuard db dirs],
+                sg_dbhome=$withval)
+
+if test -n "$sg_config"; then
+	AC_DEFINE(ACCONFIG)
+changequote(, )dnl
+	sg_cfgdir=`echo $sg_config|sed "s%/[^/][^/]*$%%"`
+changequote([, ])dnl
+fi
+
+if test -n "$sg_logdir"; then
+	AC_DEFINE(ACLOGDIR)
+fi
+
+if test -n "$sg_dbhome"; then
+	AC_DEFINE(ACDBHOME)
+fi
+
+CFLAGS="$CFLAGS $db_inc"
+CPPFLAGS="$CPPFLAGS $db_inc"
+LDFLAGS="$LDFLAGS $db_lib"
+
+dnl Checks for libraries.
+
+AC_CHECK_LIB(db,db_version,,[
+	echo
+	echo "** The Berkley DB library is required for squidGuard"
+	echo "   to compile. Get it from http://www.sleepycat.com"
+	echo "   use --with-db=DIR or --with-db-lib=DIR to specify"
+	echo "   its location. (default is $dbprefix/BerkeleyDB)"
+	echo
+	exit 1
+	])
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(db.h regex.h unistd.h)
+
+if test $DB.H = no; then
+	echo
+	echo "** No db.h found"
+	echo "   The Berkley DB library is required for squidGuard"
+	echo "   to compile. Get it from http://www.sleepycat.com"
+	echo "   use --with-db=DIR or --with-db-inc=DIR to specify"
+	echo "   its location. (default is $dbprefix/BerkeleyDB)"
+	echo
+	exit 1
+fi
+
+if test $HAVE_REGEX.H = no; then
+	echo 
+	echo "** No regex.h found"
+	echo "   The regexp library is required for squidGuard"
+	echo "   to compile. Get it from http://www.gnu.org"
+	echo
+	exit 1
+fi
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_SIZE_T
+AC_STRUCT_TM
+
+dnl Checks for library functions.
+
+AC_CHECK_FUNCS(regcomp, , AC_MSG_ERROR([No regcomp library function.]))
+AC_CHECK_FUNCS(regerror, , AC_MSG_ERROR([No regerror library function.]))
+AC_CHECK_FUNCS(regexec, , AC_MSG_ERROR([No regexec library function.]))
+AC_CHECK_FUNCS(strdup, , AC_MSG_ERROR([No strdup library function.]))
+AC_CHECK_FUNCS(strerror, , AC_MSG_ERROR([No strerror library function.]))
+AC_CHECK_FUNCS(vsprintf, , AC_MSG_ERROR([No vsprintf library function.]))
+AC_CHECK_FUNCS(sigaction)
+AC_CHECK_FUNCS(signal)
+
+AC_TRY_RUN([
+	#include <db.h>
+	int main() 
+	{
+		int major, minor, patch;
+		float ver;
+		db_version(&major, &minor, &patch);
+		ver = major + ((float) minor / 1000);
+                if (ver >= 2.006)
+			exit (0);
+		exit (1);
+	}	
+	], db_ok_version=yes, db_ok_version=no, db_ok_version=no)
+
+if test $db_ok_version = no; then
+	echo
+	echo "** The Berkley DB library version 2.6.4 or newer"
+	echo "   is required. Get it from http://www.sleepycat.com"
+	echo "   use --with-db=DIR or --with-db-inc=DIR, "
+	echo "   --with-db-lib=DIR to specify its location"
+	echo "   (default is $dbprefix/BerkeleyDB)"
+	echo 
+	exit 1;
+fi
+
+AC_TRY_RUN([
+	#include <db.h>
+	int main() 
+	{
+		int major, minor, patch;
+		float ver;
+		db_version(&major, &minor, &patch);
+		ver = major + ((float) minor / 1000);
+                if (ver > 2.007 && ver < 3.002)
+			exit (1);
+		exit (0);
+	}	
+	], db_ok_version=yes, db_ok_version=no, db_ok_version=no)
+
+if test $db_ok_version = no; then
+	echo
+	echo "** The Berkley DB library version 3.2.* or newer"
+	echo "   is required, when using 3.* versions of the library"
+	echo "   Get it from http://www.sleepycat.com"
+	echo "   use --with-db=DIR or --with-db-inc=DIR, "
+	echo "   --with-db-lib=DIR to specify its location"
+	echo "   (default is $dbprefix/BerkeleyDB)"
+	echo 
+	exit 1;
+fi
+
+AC_TRY_RUN([
+	#include <db.h>
+	int main() 
+	{
+		int major, minor, patch;
+		float ver;
+		db_version(&major, &minor, &patch);
+		ver = major + ((float) minor / 1000);
+                if (ver >= 3.002)
+			exit (0);
+		exit (1);
+	}	
+	], dbg2_ok_version=yes, dbg2_ok_version=no, dbg2_ok_version=no)
+
+if test $dbg2_ok_version = yes; then
+	AC_DEFINE(DB_VERSION_GT2)
+fi
+
+VERSION=`pwd | sed 's%.*/squidGuard-%%'`
+TESTDIR="`pwd`/test"
+
+if test -f /bin/csh -a -f /bin/hostname -a -f /bin/domainname; then
+	if test "`/bin/domainname`" = .ost.eltele.no -o "`/bin/domainname`" = .teledanmark.no; then
+		FTPDIR="~ftp/pub/www/proxy/squidGuard"
+		FTPDIR=`/bin/csh -fc "test -d $FTPDIR && echo $FTPDIR" 2>/dev/null | grep -v '^~'` || FTPDIR="@FTPDIR@"
+		CGIFILE="~ftp/pub/www/proxy/squidGuard/contrib/squidGuard.cgi"
+		CGIFILE=`/bin/csh -fc "test -f $CGIFILE && echo $CGIFILE" 2>/dev/null | grep -v '^~'` || CGI="@CGI@"
+		SQUIDGUARDROBOT="~proxy/filter/robot/bin/squidGuardRobot"
+		SQUIDGUARDROBOT=`/bin/csh -fc "test -f $SQUIDGUARDROBOT && echo $SQUIDGUARDROBOT" 2>/dev/null | grep -v '^~'` || SQUIDGUARDROBOT="@SQUIDGUARDROBOT@"
+		SQUIDGUARDROBOTUA="~proxy/filter/robot/lib/RobotUserAgent.pm"
+		SQUIDGUARDROBOTUA=`/bin/csh -fc "test -f $SQUIDGUARDROBOT && echo $SQUIDGUARDROBOTUA" 2>/dev/null | grep -v '^~'` || SQUIDGUARDROBOTUA="@SQUIDGUARDROBOTUA@"
+		BLACKLISTS="$FTPDIR/contrib/blacklists.tar.gz"
+		BLACKLISTS=`/bin/csh -fc "test -f $BLACKLISTS && echo $BLACKLISTS" 2>/dev/null | grep -v '^~'` || BLACKLISTS="@BLACKLISTS@"
+	fi
+fi
+
+AC_SUBST(ac_n)
+AC_SUBST(ac_c)
+AC_SUBST(sg_config)
+AC_SUBST(sg_cfgdir)
+AC_SUBST(sg_logdir)
+AC_SUBST(sg_dbhome)
+AC_SUBST(VERSION)
+AC_SUBST(PERL)
+AC_SUBST(LYNX)
+AC_SUBST(TESTDIR)
+AC_SUBST(FTPDIR)
+AC_SUBST(CGIFILE)
+AC_SUBST(SQUIDGUARDROBOT)
+AC_SUBST(SQUIDGUARDROBOTUA)
+AC_SUBST(ROBOTEXCEPTIONS)
+AC_SUBST(BLACKLISTS)
+
+AC_OUTPUT(Makefile src/Makefile src/sg.h doc/Makefile test/Makefile test/test1.conf test/test2.conf samples/Makefile samples/sample.conf samples/squidGuard.cgi samples/squidGuard-simple.cgi contrib/Makefile contrib/squidGuardRobot/squidGuardRobot contrib/sgclean/sgclean contrib/hostbyname/hostbyname)

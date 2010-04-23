@@ -1,0 +1,21 @@
+The official squidGuard homepage is:
+
+		      http://www.squidguard.org/
+
+			      What it is
+			      ~~~~~~~~~~
+
+squidGuard is a free (GPL), flexible and ultra fast filter, redirector
+and access controller plugin for squid.  It lets you define multiple
+access rules with different restrictions for different user groups on
+a squid cache.  squidGuard uses squid's standard redirector interface.
+
+
+			       Authors
+			       ~~~~~~~
+
+The initial squidGuard concept was designed by Pål Baltzersen and was
+implemented and is maintained and extended by Lars Erik Håland at
+ElTele Øst AS and made freely available by permission of
+
+			    ElTele Øst AS

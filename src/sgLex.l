@@ -18,7 +18,7 @@
 
 %{
 
-#include "y.tab.h"
+#include "sgParser.h"
 #include "sg.h"
 
 %}

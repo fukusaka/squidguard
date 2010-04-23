@@ -94,6 +94,7 @@ int parseLine(line, s)
   int i = 0;
   char c;
   int report_once = 1;
+  int trailingdot = 0;
   size_t strsz;
   int ndx = 0;
   
@@ -132,7 +133,7 @@ int parseLine(line, s)
     {
         /* in case this is a '://' skip over it, but try to not read past EOS */
         if(3 <= strsz-ndx) {
-          if(':' == p[ndx] && '/' == p[ndx+1] && '/' == p[ndx+2]) {
+          if(':' == p[ndx] && '/' == p[ndx+1] && '/' == p[ndx+2] && '\0' != p[ndx+3]) {
            ndx+=3; /* 3 == strlen("://"); */
           }
         }
@@ -144,9 +145,23 @@ int parseLine(line, s)
          strncpy(p+ndx,p+ndx+1, sz);
          p[ndx+sz] = '\0';
           if(1 == report_once) {
+#ifndef SUPPRESS_LOGGING
              sgLogError("Warning: Possible bypass attempt. Found multiple slashes where only one is expected: %s", s->orig); 
+#endif
             report_once--;
           }
+      }
+      else if ('.' == p[ndx] && '/' == p[ndx+1] && trailingdot == 0) {
+      /* If the domain has trailing dot, remove (problem found with squid 3.0 stable1-5) */
+      /* if this char is a dot and the next char is a slash, then shift the rest of the string left one char */
+      /* We do this only the first time it is encountered. */
+         trailingdot++;
+         size_t sz = strlen(p+ndx+1);
+         strncpy(p+ndx,p+ndx+1, sz);
+         p[ndx+sz] = '\0';
+#ifndef SUPRESS_LOGGING
+         sgLogError("Warning: Possible bypass attempt. Found a trailing dot in the domain name: %s", s->orig);
+#endif
       }
       else
       {
@@ -734,7 +749,7 @@ char *sgParseRedirect(redirect, req, acl, aclpass)
       p++;
       break;
     case 'u': /* Requested URL */
-      strcat(buf, req->orig);
+      strncat(buf, req->orig, 2048);
       p++;
       break;
     default:
@@ -766,7 +781,7 @@ void sgEmergency ()
 	fprintf( stderr, "              ****************\n");
         fprintf( stderr, "FAILURE! Check your log file for problems with the database files!\n" );
 	fprintf( stderr, "              ****************\n");
-        exit(1);
+        exit(4);
      }
   }
   sgLogError("Going into emergency mode");

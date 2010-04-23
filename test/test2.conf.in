@@ -1,5 +1,5 @@
-logdir @TESTDIR@
-dbhome @TESTDIR@
+logdir @abs_builddir@
+dbhome @abs_srcdir@
 
 src grownups {
     ip	   10.0.0.0/24	  # range 10.0.0.0  - 10.0.0.255

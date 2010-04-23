@@ -36,7 +36,6 @@
 #include <sys/signal.h>
 #include <assert.h>
 #include "config.h"
-#include "version.h"
 #if __STDC__
 # include <stdarg.h>
 # define VA_START(a, n) va_start(a, n)
@@ -79,24 +78,16 @@ int tolower();
 #define WARNING_LOGFILE "squidGuard.log"
 #define ERROR_LOGFILE   "squidGuard.error"
 
-#define DEFAULT_CONFIGFILE "@prefix@/squidGuard/squidGuard.conf"
-#define DEFAULT_LOGDIR "@prefix@/squidGuard/log"
-#define DEFAULT_DBHOME "@prefix@/squidGuard/db"
-#define EXEC_PROGRAM "@prefix@/bin/squidGuard"
-
-#ifdef ACCONFIG
-#undef DEFAULT_CONFIGFILE
-#define DEFAULT_CONFIGFILE "@sg_config@"
+#ifndef DEFAULT_CONFIGFILE
+#define DEFAULT_CONFIGFILE "/usr/local/squidGuard/squidGuard.conf"
 #endif
 
-#ifdef ACLOGDIR
-#undef DEFAULT_LOGDIR
-#define DEFAULT_LOGDIR "@sg_logdir@"
+#ifndef DEFAULT_LOGDIR
+#define DEFAULT_LOGDIR "/usr/local/squidGuard/log"
 #endif
 
-#ifdef ACDBHOME
-#undef DEFAULT_DBHOME
-#define DEFAULT_DBHOME "@sg_dbhome@"
+#ifndef DEFAULT_DBHOME
+#define DEFAULT_DBHOME "/usr/local/squidGuard/db"
 #endif
 
 #define INVALID_IP_ADDR 1
@@ -338,9 +329,10 @@ void   sgSource __P((char *));
 void   sgSourceEnd __P(());
 void   sgSourceUser __P((char *));
 void   sgSourceUserList __P((char *));
-#ifdef HAVE_LIBLDAP
+void   sgSourceUserQuery __P((char *,char *,char *,char *));
+//#ifdef HAVE_LIBLDAP
 void   sgSourceLdapUserSearch __P((char *));
-#endif
+//#endif
 void   sgSourceExecUserList __P((char *));
 void   sgSourceDomain __P((char *));
 void   sgSourceIpList __P((char *));
@@ -444,3 +436,4 @@ int    sgDoLdapSearch __P((const char *, const char *));
 int    expand_url __P((char *, size_t, const char *, const char *));
 
 
+struct UserInfo *setuserinfo __P(());

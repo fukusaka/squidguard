@@ -1,0 +1,31 @@
+EXTRA_DIST = \
+LDAPFlow.txt \
+README \
+authentication.html \
+authentication.txt \
+configuration.html \
+configuration.txt \
+configure.html \
+configure.txt \
+expressionlist.html \
+expressionlist.txt \
+extended.html \
+extended.txt \
+faq.html \
+faq.txt \
+features.html \
+features.txt \
+index.html \
+install.html \
+install.txt \
+installation.html \
+installation.txt \
+ldap-ad-tips.html \
+ldap-ad-tips.txt \
+ldap.html \
+ldap.txt \
+runtimeops.html \
+runtimeops.txt \
+squidGuard.gif \
+troubleshoot.html \
+troubleshoot.txt

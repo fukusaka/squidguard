@@ -198,8 +198,8 @@ source_contents:
 source_content:     DOMAIN domain
                     | USER user 
                     | USERLIST WORD { sgSourceUserList($2); } 
-@MYSQLLINE@
-@YACCLINE@
+/*MYSQL*/           | USERQUERY WORD WORD WORD WORD { sgSourceUserQuery($2,$3,$4,$5); }
+/*LDAP*/            | LDAPUSERSEARCH WORD { sgSourceLdapUserSearch($2); }
                     | EXECUSERLIST EXECCMD { sgSourceExecUserList($2); }
                     | USERQUOTA NUMBER NUMBER HOURLY { sgSourceUserQuota($2,$3,"3600");} 
                     | USERQUOTA NUMBER NUMBER DAILY { sgSourceUserQuota($2,$3,"86400");} 
@@ -668,10 +668,10 @@ void sgSourceUserList(file)
 /* MySQLsupport */
 #ifdef HAVE_MYSQL
 #if __STDC__
-void sgSourceUserQuery(char *query)
+void sgSourceUserQuery(char *query,char *a,char *b,char *c)
 #else
-void sgSourceUserQuery(query)
-     char *query;
+void sgSourceUserQuery(query,a,b,c)
+     char *query,*a,*b,*c;
 #endif
 {
   char *dbhome = NULL, *f;
@@ -697,12 +697,16 @@ void sgSourceUserQuery(query)
     dbhome = DEFAULT_DBHOME;
   }
   if( !(conn = mysql_init(0)) ) {
-    @NOLOG1@ sgLogError("%s: can't open userquery: mysql init",progname); @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+     sgLogError("%s: can't open userquery: mysql init",progname); 
+#endif
     return;
   }
   if( ! mysql_real_connect(conn, "localhost", my_user, my_pass, my_db,
       0,NULL,0) ) {
-    @NOLOG1@ sgLogError("%s: can't open userquery: mysql connect",progname); @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+     sgLogError("%s: can't open userquery: mysql connect",progname); 
+#endif
     return;
   }
   my_query=(char *)calloc(strlen(query) + strlen(str) + 1,sizeof(char));
@@ -710,7 +714,9 @@ void sgSourceUserQuery(query)
   strcat(my_query, str);
   /* DEBUG:   sgLogError("%s: TEST: MySQL Query %s",progname,my_query);  */
   if( mysql_query(conn, my_query) ) {
-    @NOLOG1@ sgLogError("%s: can't open userquery: mysql query",progname); @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+     sgLogError("%s: can't open userquery: mysql query",progname); 
+#endif
     return;
   }
   res = mysql_use_result(conn);
@@ -723,6 +729,16 @@ void sgSourceUserQuery(query)
   mysql_free_result(res);
   mysql_close(conn);
  }
+#else /* !HAVE_MYSQL */
+#if __STDC__
+void sgSourceUserQuery(char *query,char *a,char *b,char *c)
+#else
+void sgSourceUserQuery(query,a,b,c)
+     char *query,*a,*b,*c;
+#endif
+{
+    sgLogError("%s: not built with MySQL support",progname);
+}
 #endif
 
 
@@ -743,7 +759,9 @@ void sgSourceLdapUserSearch(url)
 */
 
   if(!ldap_is_ldap_url(url)) {
-    @NOLOG1@ sgLogError("%s: can't parse LDAP url %s",progname, url);  @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+     sgLogError("%s: can't parse LDAP url %s",progname, url);  
+#endif
     return;
   }
 
@@ -761,6 +779,16 @@ void sgSourceLdapUserSearch(url)
     sp->userDb->type=SGDBTYPE_USERLIST;
     sgDbInit(sp->userDb,NULL);
   }
+}
+#else /* !LDAP Support */
+#if __STDC__
+void sgSourceLdapUserSearch(char *url)
+#else
+void sgSourceLdapUserSearch(url)
+     char *url;
+#endif
+{
+    sgLogError("%s: not built with LDAP support",progname);
 }
 #endif
 
@@ -1908,7 +1936,9 @@ int sgTimeNextEvent()
     m = ((lastval - m) * 60) - lt->tm_sec;
   if(m <= 0)
     m = 30;
-@NOLOG1@  sgLogError("Info: recalculating alarm in %d seconds", (unsigned int)m); @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+  sgLogError("Info: recalculating alarm in %d seconds", (unsigned int)m); 
+#endif
   alarm((unsigned int) m);
   sgTimeCheck(lt,t);
   sgTimeSetAcl();
@@ -2351,16 +2381,20 @@ struct Acl *sgAclCheckSource(source)
       }
     }
   }
-@NOLOG1@
+
+#ifndef SUPPRESS_LOGGING
   else {
       if( globalDebug == 1 ) { sgLogError("source not found"); }
        }
-@NOLOG2@
+#endif
+
   if(!found) {
     acl = defaultAcl;
-@NOLOG1@
+
+#ifndef SUPPRESS_LOGGING
     if( globalDebug == 1 ) { sgLogError("no ACL matching source, using default"); }
-@NOLOG2@
+#endif
+
   }
   return acl;
 }
@@ -2592,7 +2626,9 @@ int sgFindUser(src, ident, rval)
 
                sgDbUpdate(src->userDb, ident, (char *) userinfo,
                        sizeof(struct UserInfo));
-               @NOLOG1@ sgLogError("Added LDAP source: %s", ident); @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+                sgLogError("Added LDAP source: %s", ident); 
+#endif
 
                if(found) {
                        *rval = userinfo;
@@ -2760,12 +2796,16 @@ int sgDoLdapSearch(url, username)
                if (strncmp(key, "bindname=", 9) == 0)
                {
                        binddn = data;
-                       @NOLOG1@ sgLogError("Extracted binddn: %s", binddn); @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+                        sgLogError("Extracted binddn: %s", binddn); 
+#endif
                }
                else if (strncmp(key, "x-bindpass=", 11) == 0)
                {
                        bindpass = data;
-                       @NOLOG1@ sgLogError("Extracted x-bindpass: %s", bindpass); @NOLOG2@
+#ifndef SUPPRESS_LOGGING
+                        sgLogError("Extracted x-bindpass: %s", bindpass); 
+#endif
                }
        }
 
@@ -2783,14 +2823,16 @@ int sgDoLdapSearch(url, username)
                lud->lud_attrs, 0, NULL, NULL, NULL, -1,
                &ldapresult) != LDAP_SUCCESS) {
 
-@NOLOG1@
+
+#ifndef SUPPRESS_LOGGING
                sgLogError("%s: ldap_search_ext_s failed: %s "
 
                        "(params: %s, %d, %s, %s)",
                        progname, ldap_err2string(get_ldap_errno(ld)),
                        lud->lud_dn, lud->lud_scope, lud->lud_filter,
                        lud->lud_attrs[0]);
-@NOLOG2@
+#endif
+
 
                ldap_unbind(ld);
                ldap_free_urldesc(lud);

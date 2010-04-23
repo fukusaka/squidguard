@@ -1,19 +1,19 @@
 /*
   By accepting this notice, you agree to be bound by the following
   agreements:
-  
+
   This software product, squidGuard, is copyrighted (C) 1998 by
   ElTele Øst AS, Oslo, Norway, with all rights reserved.
   With December 27th 2006 all rights moved to Christine Kronberg,
   Shalla Secure Services.
-  
+
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
   hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
   PURPOSE.  See the GNU General Public License (GPL) for more details.
-  
+
   You should have received a copy of the GNU General Public License
   (GPL) along with this program.
 */
@@ -42,7 +42,7 @@ void sgDbInit(Db, file)
   int createdb = 0, ret;
   u_int32_t flag = 0;
   if(file != NULL){
-    if(globalCreateDb != NULL && (!strcmp(globalCreateDb,"all") || 
+    if(globalCreateDb != NULL && (!strcmp(globalCreateDb,"all") ||
        !sgStrRncmp(file,globalCreateDb,strlen(globalCreateDb))))
       createdb = 1;
     dbfile = (char *) sgMalloc(strlen(file) + 5);
@@ -59,17 +59,10 @@ void sgDbInit(Db, file)
       }
     }
   }
-#if DB_VERSION_MAJOR == 2
-  Db->dbenv= db_init(Db->dbhome);
-  memset(&Db->dbinfo, 0, sizeof(Db->dbinfo));
-  Db->dbinfo.db_pagesize = 1024;              /* Page size: 1K.  */
-  if(Db->type == SGDBTYPE_DOMAINLIST)
-    Db->dbinfo.bt_compare = domainCompare;
-#else
   /*since we are not sharing the db's, we does not nedd dbenv */
   //ret = db_init(Db->dbhome, &Db->dbenv);
   //if(ret)
-  //  sgLogFatalError("error db_init %s", strerror(ret)); 
+  //  sgLogFatalError("error db_init %s", strerror(ret));
   Db->entries = 1;
   Db->dbenv = NULL;
   if ((ret = db_create(&Db->dbp, Db->dbenv, 0)) != 0){
@@ -80,41 +73,6 @@ void sgDbInit(Db, file)
   //Db->dbp->set_pagesize(Db->dbp, 1024);
   if(Db->type == SGDBTYPE_DOMAINLIST)
     Db->dbp->set_bt_compare(Db->dbp, (void *) domainCompare);
-#endif
-#if DB_VERSION_MAJOR == 2
-  if(globalUpdate || createdb || stat(dbfile,&st)){
-    flag = DB_CREATE;
-    if(createdb)
-      flag = flag | DB_TRUNCATE;
-    if ((errno = 
-	 db_open(dbfile,DB_BTREE, flag, 0664, Db->dbenv, &Db->dbinfo, &Db->dbp)) != 0) {
-      sgLogFatalError("Error db_open: %s", strerror(errno));
-    }
-  } else {
-    if ((errno = 
-	 db_open(dbfile,DB_BTREE, DB_RDONLY, 0664, Db->dbenv, &Db->dbinfo, &Db->dbp)) != 0) {
-      sgLogFatalError("Error db_open: %s", strerror(errno));
-    }
-  }
-#endif
-#if DB_VERSION_MAJOR == 3
-  if(globalUpdate || createdb || (dbfile != NULL && stat(dbfile,&st))){
-    flag = DB_CREATE;
-    if(createdb)
-      flag = flag | DB_TRUNCATE;
-    if ((ret = 
-	 Db->dbp->open(Db->dbp, dbfile, NULL, DB_BTREE, flag, 0664)) != 0) {
-      (void) Db->dbp->close(Db->dbp, 0);
-      sgLogFatalError("Error db_open: %s", strerror(ret));
-    }
-  } else {
-    if ((ret = 
-	 Db->dbp->open(Db->dbp, dbfile, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
-      sgLogFatalError("Error db_open: %s", strerror(ret));
-    }
-  }
-#endif
-#if DB_VERSION_MAJOR == 4
   if(globalUpdate || createdb || (dbfile != NULL && stat(dbfile,&st))){
     flag = DB_CREATE;
     if(createdb)
@@ -130,32 +88,21 @@ void sgDbInit(Db, file)
       sgLogFatalError("Error db_open: %s", strerror(ret));
     }
   }
-#endif
   if(file != NULL){
     if(dbfile == NULL ){
       sgDbLoadTextFile(Db,file,0);
       if(Db->entries == 0){
 	(void)Db->dbp->close(Db->dbp,0);
-#if DB_VERSION_MAJOR == 2
-	db_appexit(Db->dbenv);
-	Db->dbenv = NULL;
-#else
 	//Db->dbenv->close(Db->dbenv, 0);
 	Db->dbenv = NULL;
-#endif
       }
     }
     if(dbfile != NULL && createdb){
       sgDbLoadTextFile(Db,file,0);
       if(Db->entries == 0){
 	(void)Db->dbp->close(Db->dbp,0);
-#if DB_VERSION_MAJOR == 2
-	db_appexit(Db->dbenv);
-	Db->dbenv = NULL;
-#else
 	//Db->dbenv->close(Db->dbenv, 0);
 	Db->dbenv = NULL;
-#endif
       } else {
 	sgLogError("create new dbfile %s",dbfile);
 	(void)Db->dbp->sync(Db->dbp,0);
@@ -194,17 +141,10 @@ int defined(Db, request, retval)
   char *data = NULL;
   static char dbdata[MAX_BUF];
   char *req = request, r[MAX_BUF + 1];
-#if DB_VERSION_MAJOR == 2
   if ((errno = Db->dbp->cursor(Db->dbp, NULL, &Db->dbcp,0)) != 0) {
     sgLogFatalError("cursor: %s", strerror(errno));
     exit (1);
   }
-#else
-  if ((errno = Db->dbp->cursor(Db->dbp, NULL, &Db->dbcp,0)) != 0) {
-    sgLogFatalError("cursor: %s", strerror(errno));
-    exit (1);
-  }
-#endif
   switch ( Db->type ) {
   case SGDBTYPE_DOMAINLIST:
     r[0]='.'; r[1] = '\0';
@@ -284,7 +224,7 @@ int defined(Db, request, retval)
       memcpy(dbdata,Db->data.data,Db->data.size);
       *(dbdata + Db->data.size) = '\0';
       *retval = dbdata;
-    } 
+    }
   memset(&Db->data, 0, sizeof(Db->data));
   (void)Db->dbcp->c_close(Db->dbcp);
   return result;
@@ -378,7 +318,7 @@ void sgDbLoadTextFile(Db, filename, update)
   size_t fpsz;
   size_t lnsz = 0;
   struct stat fpst;
-  
+
   dbp = Db->dbp;
   if ((fp = fopen(filename, "r")) == NULL) {
     sgLogFatalError("%s: %s", filename, strerror(errno));
@@ -394,7 +334,7 @@ void sgDbLoadTextFile(Db, filename, update)
   if ( showBar == 1 ) {
     startProgressBar();
   }
-  
+
   memset(&Db->key, 0, sizeof(DBT));
   memset(&Db->data, 0, sizeof(DBT));
   while(fgets(line, sizeof(line), fp) != NULL){
@@ -403,7 +343,7 @@ void sgDbLoadTextFile(Db, filename, update)
     if ( showBar == 1 ) {
     updateProgressBar((float)lnsz/(float)fpsz);
     }
-    
+
     if(*line == '#')
       continue;
     p = strchr(line,'\n');
@@ -416,7 +356,7 @@ void sgDbLoadTextFile(Db, filename, update)
     if(*key == '+' || *key == '-'){
       if(*key == '+')
 	add = 1;
-      else 
+      else
 	add = 0;
       key++;
     }
@@ -428,7 +368,7 @@ void sgDbLoadTextFile(Db, filename, update)
       if( val != NULL){
         /* remove extra space before the redirect url */
         while (*val != '\0' && isspace(*val))
-          val++; 
+          val++;
         if (*val == '\0') /* there was nothing but some trailing space */
           val = NULL;
       }
@@ -442,9 +382,9 @@ void sgDbLoadTextFile(Db, filename, update)
     } else if(Db->type == SGDBTYPE_URLLIST){
       if(*key != '.')
 	k = sgStripUrl(key);
-      else 
+      else
 	k = key;
-    } else 
+    } else
       k = key;
     Db->key.data = k;
     Db->key.size = strlen(k);
@@ -471,7 +411,7 @@ void sgDbLoadTextFile(Db, filename, update)
 	sgLogFatalError("sgDbLoadTextFile: put: %s", strerror(errno));
 	break;
       }
-    } 
+    }
   }
   if(update){
     sgLogError("update: added %d entries, deleted %d entries",added,deleted);
@@ -527,27 +467,6 @@ void sgDbUpdate(Db, key, value, len)
   }
 }
 
-#if DB_VERSION_MAJOR == 2
-#if __STDC__
-DB_ENV *db_init(char *dbhome)
-#else
-DB_ENV *db_init(dbhome)
-     char *dbhome;
-#endif
-{
-  DB_ENV *dbenv;
-  
-  dbenv = (DB_ENV *) sgCalloc(1,sizeof(DB_ENV));
-  dbenv->db_errfile = stderr;
-  dbenv->db_errpfx = "sg";
-  
-  if ((errno = db_appinit(dbhome, NULL, dbenv, DB_CREATE)) != 0) {
-    sgLogFatalError("db_appinit: %s", strerror(errno));
-  }
-  return (dbenv);
-}
-/* db version greater than 2 */
-#else
 #if __STDC__
 int db_init(char *dbhome, DB_ENV **dbenvp)
 #else
@@ -561,8 +480,8 @@ int db_init(dbhome, dbenvp)
 
   if((ret = db_env_create(&dbenv, 0)) != 0)
     return ret;
-  //dbenv->set_errfile(dbenv, stderr);  
-  
+  //dbenv->set_errfile(dbenv, stderr);
+
   if((ret = dbenv->open(dbenv, dbhome, DB_CREATE | DB_INIT_MPOOL, 0)) == 0) {
     *dbenvp = dbenv;
     return 0;
@@ -570,42 +489,12 @@ int db_init(dbhome, dbenvp)
   (void) dbenv->close(dbenv, 0);
   return ret;
 }
-#endif
 
 
 /*
   domainCompare does a reverse compare of two strings
 */
 
-#if DB_VERSION_MAJOR == 2
-#if __STDC__
-int domainCompare (const DBT *a, const DBT *b)
-#else
-int domainCompare (a, b)
-     DBT *a;
-     DBT *b;
-#endif
-{
-  register const char *a1 , *b1;
-  register char ac1 , bc1;
-  a1=(char *) a->data + a->size - 1;
-  b1=(char *) b->data + b->size - 1;
-  while (*a1 == *b1){
-    if(b1 == b->data || a1 == a->data)
-        break;
-    a1--; b1--;
-  }
-  ac1 = *a1 == '.' ? '\1' : *a1;
-  bc1 = *b1 == '.' ? '\1' : *b1;
-  if(a1 == a->data && b1 == b->data)
-    return ac1 - bc1;
-  if(a1 == a->data)
-    return -1;
-  if(b1 == b->data)
-    return 1;
-  return ac1 - bc1;
-}
-#else
 #if __STDC__
 int domainCompare (const DB *dbp, const DBT *a, const DBT *b)
 #else
@@ -634,7 +523,6 @@ int domainCompare (dbp, a, b)
     return 1;
   return ac1 - bc1;
 }
-#endif
 
 
 

@@ -1,10 +1,7 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define if you have dbversion greater than 3.2 */
-#undef DB_VERSION_GT2
-
-/* Define if you have dbversion greater than 4.2 */
-#undef DB_VERSION_GT3
+/* "Berkeley DB Header File" */
+#undef DB_HEADER
 
 /* no description */
 #undef DEFAULT_CONFIGFILE

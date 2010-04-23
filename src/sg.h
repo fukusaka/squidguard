@@ -1,24 +1,23 @@
 /*
   By accepting this notice, you agree to be bound by the following
   agreements:
-  
+
   This software product, squidGuard, is copyrighted (C) 1998-2007
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
- 
+
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
   hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
   PURPOSE.  See the GNU General Public License (GPL) for more details.
-  
+
   You should have received a copy of the GNU General Public License
   (GPL) along with this program.
 */
 
 #include <stdio.h>
 #include <unistd.h>
-#include <db.h>
 #include <errno.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -36,6 +35,7 @@
 #include <sys/signal.h>
 #include <assert.h>
 #include "config.h"
+#include DB_HEADER
 #if __STDC__
 # include <stdarg.h>
 # define VA_START(a, n) va_start(a, n)
@@ -154,7 +154,7 @@ struct SquidInfo {
   int  dot;  /* true if domain is in dot notation */
   char url[MAX_BUF];
   char orig[MAX_BUF];
-  char surl[MAX_BUF];	
+  char surl[MAX_BUF];
   char furl[MAX_BUF];
   char *strippedurl;
   int  port;
@@ -195,12 +195,9 @@ struct sgDb {
   DB *dbp;
   DBC *dbcp;
   DB_ENV *dbenv;
-#ifndef DB_VERSION_GT2
-  DB_INFO dbinfo;
-#endif
   DBT key;
   DBT data;
-  int entries;	
+  int entries;
   int type;
 };
 
@@ -390,13 +387,8 @@ void   sgDbInit __P(());
 void   sgDbLoadTextFile __P((struct sgDb *, char *, int));
 void   sgDbUpdate __P((struct sgDb *, char *, char *, size_t));
 
-#if DB_VERSION_GT2
 int db_init __P((char *, DB_ENV **));
 int    domainCompare __P((const DB *, const DBT *, const DBT *));
-#else
-DB_ENV *db_init __P((char *));
-int    domainCompare __P((const DBT *, const DBT *));
-#endif
 
 time_t date2sec __P((char *));
 time_t iso2sec __P((char *));

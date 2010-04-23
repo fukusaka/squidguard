@@ -13,23 +13,6 @@ dnl
 dnl Handle command line arguments
 dnl
 
-AC_ARG_WITH([db],
-	AS_HELP_STRING([--with-db=DIR],[location of the Berkley DB distribution]),
-	[dbprefix=${withval}])
-AC_ARG_WITH([db_lib],
-	AS_HELP_STRING([--with-db-lib=DIR],[location of the Berkley DB library]),
-	[db_lib="${withval}"])
-AC_ARG_WITH([db_inc],
-	AS_HELP_STRING([--with-db-inc=DIR],[location of the Berkley DB include files]),
-	[db_inc="${withval}"])
-
-test -z "$dbprefix" && dbprefix=/usr/local
-test -z "$db_inc" && db_inc=$dbprefix/include
-test -z "$db_lib" && db_lib=$dbprefix/lib
-
-CFLAGS="$CFLAGS -I$db_inc"
-LIBS="$LIBS -L$db_lib"
-
 AC_ARG_WITH(sg_config,
 	AS_HELP_STRING([--with-sg-config=FILE],[location of squidGuard config file]),
                 sg_config=$withval)
@@ -75,7 +58,8 @@ if test $PERL = no; then
 	echo
 	echo "** No Perl found in the PATH. Perl is required"
 	echo "   for blocked.cgi to work "
-	echo 
+	echo
+	exit 1
 fi
 
 # Checks for libraries.
@@ -83,20 +67,8 @@ fi
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([unistd.h])
-
-AC_CHECK_HEADER([db.h],,[
-	echo
-	echo "** No db.h found"
-	echo "   The Berkley DB library is required for squidGuard"
-	echo "   to compile. Get it from http://www.oracle.com"
-	echo "   use --with-db=DIR or --with-db-inc=DIR to specify"
-	echo "   its location. (default is $dbprefix)"
-	echo
-	exit 1
-       ])
-
 AC_CHECK_HEADERS([regex.h],,[
-	echo 
+	echo
 	echo "** No regex.h found"
 	echo "   The regexp library is required for squidGuard"
 	echo "   to compile. Get it from http://www.gnu.org"
@@ -134,97 +106,44 @@ AC_CHECK_FUNCS(sigaction)
 AC_CHECK_FUNCS(signal)
 
 dnl Check Berkley DB
-LIBS="$LIBS -ldb"
-AC_DEFUN([XX_BDB_VERSION],[
-AC_RUN_IFELSE([
-	#include <db.h>
-	int main() 
-	{
-		int major, minor, patch;
-		float ver;
-#if DB_VERSION_MAJOR
-                major = DB_VERSION_MAJOR;
-                minor = DB_VERSION_MINOR;
-                patch = DB_VERSION_PATCH;
-#else
-                db_version(&major, &minor, &patch);
-#endif
-		ver = major + ((float) minor / 1000);
-                if ($1)
-			exit (0);
-		exit (1);
-	}],[$2],[$3],[$4])])
+AC_ARG_WITH([db],
+	AS_HELP_STRING([--with-db=DIR],[location of the Berkley DB distribution]),
+	[dbprefix=${withval}])
+AC_ARG_WITH([db_lib],
+	AS_HELP_STRING([--with-db-lib=DIR],[location of the Berkley DB library]),
+	[db_lib="${withval}"])
+AC_ARG_WITH([db_inc],
+	AS_HELP_STRING([--with-db-inc=DIR],[location of the Berkley DB include files]),
+	[db_inc="${withval}"])
 
-AC_MSG_CHECKING([Berkeley DB])
-XX_BDB_VERSION([1], db_ok_version=yes, db_ok_version=no, db_ok_version=no)
-AC_MSG_RESULT([$db_ok_version])
+test -z "$dbprefix" && dbprefix=/usr/local
+test -z "$db_inc" && db_inc=$dbprefix/include
+test -z "$db_lib" && db_lib=$dbprefix/lib
 
-if test $db_ok_version = no; then
+CFLAGS="$CFLAGS -I$db_inc"
+LIBS="$LIBS -L$db_lib"
 
-AC_CHECK_LIB(pthread,pthread_create,[
-	LIBS="$LIBS -lpthread"
-	AC_MSG_CHECKING([Berkeley DB with pthread])
-	XX_BDB_VERSION([1], db_ok_version=yes, db_ok_version=no, db_ok_version=no)
-	AC_MSG_RESULT([$db_ok_version])
-	])
-
-fi
-
-if test $db_ok_version = no; then
+AC_CHECK_HEADER([db.h],,[
 	echo
-	echo "** The Berkley DB library version 2.6.4 or newer"
+	echo "** No db.h found"
+	echo "   The Berkley DB library is required for squidGuard"
+	echo "   to compile. Get it from http://www.oracle.com"
+	echo "   use --with-db=DIR or --with-db-inc=DIR to specify"
+	echo "   its location. (default is $dbprefix)"
+	echo
+	exit 1
+       ])
+
+AX_BERKELEY_DB([4.2],[
+	AC_DEFINE_UNQUOTED([DB_HEADER], ["$DB_HEADER"])
+	LIBS="$LIBS $DB_LIBS"
+],[
+	echo
+	echo "** The Berkley DB library version 4.2 or newer"
 	echo "   is required. Get it from http://www.oracle.com"
-	echo "   use --with-db=DIR or --with-db-inc=DIR, "
-	echo "   --with-db-lib=DIR to specify its location"
-	echo "   (default is $dbprefix)"
-	echo 
-	exit 1;
-fi
-
-AC_MSG_CHECKING([Berkeley DB greater then version 2.6])
-XX_BDB_VERSION([ver >= 2.006], db_ok_version=yes, db_ok_version=no, db_ok_version=no)
-AC_MSG_RESULT([$db_ok_version])
-
-if test $db_ok_version = no; then
 	echo
-	echo "** The Berkley DB library version 2.6.4 or newer"
-	echo "   is required. Get it from http://www.oracle.com"
-	echo "   use --with-db=DIR or --with-db-inc=DIR, "
-	echo "   --with-db-lib=DIR to specify its location"
-	echo "   (default is $dbprefix)"
-	echo 
 	exit 1;
-fi
-
-XX_BDB_VERSION([ver >= 3.000 && ver < 3.002], db_ok_version=no)
-
-if test $db_ok_version = no; then
-	echo
-	echo "** The Berkley DB library version 3.2.* or newer"
-	echo "   is required, when using 3.* versions of the library"
-	echo "   Get it from http://www.oracle.com"
-	echo "   use --with-db=DIR or --with-db-inc=DIR, "
-	echo "   --with-db-lib=DIR to specify its location"
-	echo "   (default is $dbprefix)"
-	echo 
-	exit 1;
-fi
-
-AC_MSG_CHECKING([Berkeley DB greater then version 3.2])
-XX_BDB_VERSION([ver >= 3.002], dbg2_ok_version=yes, dbg2_ok_version=no, dbg2_ok_version=no)
-AC_MSG_RESULT([$dbg2_ok_version])
-
-if test $dbg2_ok_version = yes; then
-	AC_DEFINE([DB_VERSION_GT2],1,[Define if you have dbversion greater than 3.2])
-fi
-
-AC_MSG_CHECKING([Berkeley DB greater then version 4.2])
-XX_BDB_VERSION([ver >= 4.002], dbg3_ok_version=yes, dbg3_ok_version=no, dbg3_ok_version=no)
-AC_MSG_RESULT([$dbg3_ok_version])
-
-if test $dbg3_ok_version = yes; then
-	AC_DEFINE([DB_VERSION_GT3],1,[Define if you have dbversion greater than 4.2])
-fi
+])
 
 dnl Check ldap
 AC_ARG_WITH(ldap,

@@ -1,4 +1,6 @@
-##### http://autoconf-archive.cryp.to/berkeley_db.html
+# ===========================================================================
+#              http://autoconf-archive.cryp.to/berkeley_db.html
+# ===========================================================================
 #
 # SYNOPSIS
 #
@@ -10,8 +12,8 @@
 #   given.
 #
 #   If libdb is found, DB_HEADER and DB_LIBS variables are set and
-#   ACTION-IF-FOUND shell code is executed if specified. DB_HEADER is
-#   set to location of db.h header in quotes (e.g. "db3/db.h") and
+#   ACTION-IF-FOUND shell code is executed if specified. DB_HEADER is set to
+#   location of db.h header in quotes (e.g. "db3/db.h") and
 #   AC_DEFINE_UNQUOTED is called on it, so that you can type
 #
 #        #include DB_HEADER
@@ -19,43 +21,13 @@
 #   in your C/C++ code. DB_LIBS is set to linker flags needed to link
 #   against the library (e.g. -ldb3.1) and AC_SUBST is called on it.
 #
-# LAST MODIFICATION
+# LICENSE
 #
-#   2005-01-21
+#   Copyright (c) 2008 Vaclav Slavik <vaclav.slavik@matfyz.cz>
 #
-# COPYLEFT
-#
-#   Copyright (c) 2005 Vaclav Slavik <vaclav.slavik@matfyz.cz>
-#
-#   This program is free software; you can redistribute it and/or
-#   modify it under the terms of the GNU General Public License as
-#   published by the Free Software Foundation; either version 2 of the
-#   License, or (at your option) any later version.
-#
-#   This program is distributed in the hope that it will be useful, but
-#   WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-#   General Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License
-#   along with this program; if not, write to the Free Software
-#   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-#   02111-1307, USA.
-#
-#   As a special exception, the respective Autoconf Macro's copyright
-#   owner gives unlimited permission to copy, distribute and modify the
-#   configure scripts that are the output of Autoconf when processing
-#   the Macro. You need not follow the terms of the GNU General Public
-#   License when using or distributing such scripts, even though
-#   portions of the text of the Macro appear in them. The GNU General
-#   Public License (GPL) does govern all other use of the material that
-#   constitutes the Autoconf Macro.
-#
-#   This special exception to the GPL applies to versions of the
-#   Autoconf Macro released by the Autoconf Macro Archive. When you
-#   make and distribute a modified version of the Autoconf Macro, you
-#   may extend this special exception to the GPL to apply to your
-#   modified version as well.
+#   Copying and distribution of this file, with or without modification, are
+#   permitted in any medium without royalty provided the copyright notice
+#   and this notice are preserved.
 
 AC_DEFUN([AX_BERKELEY_DB],
 [
@@ -129,7 +101,7 @@ AC_DEFUN([AX_BERKELEY_DB],
     AC_MSG_RESULT([not found])
     ifelse([$3], , :, [$3])
   else
-    AC_DEFINE_UNQUOTED(DB_HEADER, ["$DB_HEADER"])
+    AC_DEFINE_UNQUOTED(DB_HEADER, ["$DB_HEADER"], ["Berkeley DB Header File"])
     AC_SUBST(DB_LIBS)
     ifelse([$2], , :, [$2])
   fi

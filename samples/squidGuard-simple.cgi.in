@@ -3,16 +3,22 @@
 # Sample CGI to explain to the user that the URL is blocked and by which rule set
 #
 # By Pål Baltzersen 1998
+# Modifications by Christine Kronberg, 2007.
 #
 
 $QUERY_STRING = $ENV{'QUERY_STRING'};
 $DOCUMENT_ROOT = $ENV{'DOCUMENT_ROOT'};
 
+# Email Adresse des Proxy Administrators:
+# Edit to your requirements. Make sure to keep the @ escaped.
+my $PROXYEMAIL = "proxymaster\@foo.bar";
+#
+#
 $clientaddr = "";
 $clientname = "";
-$clientident = "";
-$srcclass = "";
-$targetclass = "";
+$clientuser = "";
+$clientgroup = "";
+$targetgroup = "";
 $url = "";
 $time = time;
 @day = ("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday");
@@ -22,7 +28,7 @@ while ($QUERY_STRING =~ /^\&?([^&=]+)=([^&=]*)(.*)/) {
   $key = $1;
   $value = $2;
   $QUERY_STRING = $3;
-  if ($key =~ /^(clientaddr|clientname|clientident|srcclass|targetclass|url)$/) {
+  if ($key =~ /^(clientaddr|clientname|clientuser|clientgroup|targetgroup|url)$/) {
     eval "\$$key = \$value";
   }
   if ($QUERY_STRING =~ /^url=(.*)/) {
@@ -52,14 +58,14 @@ if ($url =~ /\.(gif|jpg|jpeg|mpg|mpeg|avi|mov)$/i) {
     print "         BORDER=0></A>\n      </P>\n\n";
     print "    <H1 ALIGN=CENTER>Access denied because<BR>this client is not<BR>defined on the proxy</H1>\n\n";
     print "    <TABLE BORDER=0 ALIGN=CENTER>\n";
-    print "      <TR><TH ALIGN=RIGHT>Supplementary info<TH ALIGN=CENTER>:<TH ALIGN=LEFT>\n";
-    print "      <TR><TH ALIGN=RIGHT>Client address<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientaddr\n";
-    print "      <TR><TH ALIGN=RIGHT>Client name<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientname\n";
-    print "      <TR><TH ALIGN=RIGHT>User ident<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientident\n";
-    print "      <TR><TH ALIGN=RIGHT>Client group<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$srcclass\n";
+    print "      <TR><TH ALIGN=RIGHT>Supplementary info</TH><TH ALIGN=CENTER>:</TH><TH ALIGN=LEFT>&nbsp;</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client address</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientaddr</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client name</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientname</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>User ident</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientuser</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client group</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientgroup</TH></TR>\n";
     print "    </TABLE>\n\n";
     print "    <P ALIGN=CENTER>If this is wrong, contact<BR>\n";
-    print "      <A HREF=mailto:proxymaster\@foo.bar>proxymaster\@foo.bar</A>\n";
+    print "      <A HREF=$PROXYEMAIL>$PROXYEMAIL</A>\n";
     print "    </P>\n\n";
   } elsif ($targetclass eq "in-addr") {
     print "    <P ALIGN=RIGHT>\n";
@@ -67,16 +73,18 @@ if ($url =~ /\.(gif|jpg|jpeg|mpg|mpeg|avi|mov)$/i) {
     print "         BORDER=0></A>\n      </P>\n\n";
     print "    <H1 ALIGN=CENTER>IP address URLs<BR>are not allowed<BR>from this client</H1>\n\n";
     print "    <TABLE BORDER=0 ALIGN=CENTER>\n";
-    print "      <TR><TH ALIGN=RIGHT>Supplementary info<TH ALIGN=CENTER>:<TH ALIGN=LEFT>\n";
-    print "      <TR><TH ALIGN=RIGHT>Client address<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientaddr\n";
-    print "      <TR><TH ALIGN=RIGHT>Client name<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientname\n";
-    print "      <TR><TH ALIGN=RIGHT>User ident<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientident\n";
-    print "      <TR><TH ALIGN=RIGHT>Client group<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$srcclass\n";
-    print "      <TR><TH ALIGN=RIGHT>URL<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$url\n";
-    print "      <TR><TH ALIGN=RIGHT>Target class<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$targetclass\n";
+    print "      <TR><TH ALIGN=RIGHT>Supplementary info</TH><TH ALIGN=CENTER>:</TH><TH ALIGN=LEFT>&nbsp;</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client address</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientaddr</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client name</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientname</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>User ident</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientuser</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client group</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientgroup</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>URL</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$url</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Target class</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$targetgroup</TH></TR>\n";
     print "    </TABLE>\n\n";
-    print "    <P ALIGN=CENTER>Contact the <B>webmaster</B> of <B>$url</B><BR>\n";
-    print "      and ask him to give the webserver a proper <U>domain name</U>\n";
+    print "    <P ALIGN=CENTER>No domain matching the given IP address could be found. Access to this\n";
+    print "    kind of address is forbidden.<BR>\n";
+    print "    If this is wrong, contact<BR>\n";
+    print "    <A HREF=mailto:$PROXYEMAIL>$PROXYEMAIL</A>\n";
     print "    </P>\n\n";
   } else {
     print "    <P ALIGN=RIGHT>\n";
@@ -84,16 +92,16 @@ if ($url =~ /\.(gif|jpg|jpeg|mpg|mpeg|avi|mov)$/i) {
     print "         BORDER=0></A>\n      </P>\n\n";
     print "    <H1 ALIGN=CENTER>Access denied</H1>\n\n";
     print "    <TABLE BORDER=0 ALIGN=CENTER>\n";
-    print "      <TR><TH ALIGN=RIGHT>Supplementary info<TH ALIGN=CENTER>:<TH ALIGN=LEFT>\n";
-    print "      <TR><TH ALIGN=RIGHT>Client address<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientaddr\n";
-    print "      <TR><TH ALIGN=RIGHT>Client name<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientname\n";
-    print "      <TR><TH ALIGN=RIGHT>User ident<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$clientident\n";
-    print "      <TR><TH ALIGN=RIGHT>Client group<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$srcclass\n";
-    print "      <TR><TH ALIGN=RIGHT>URL<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$url\n";
-    print "      <TR><TH ALIGN=RIGHT>Target class<TH ALIGN=CENTER>=<TH ALIGN=LEFT>$targetclass\n";
+    print "      <TR><TH ALIGN=RIGHT>Supplementary info</TH><TH ALIGN=CENTER>:</TH><TH ALIGN=LEFT>&nbsp;</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client address</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientaddr</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client name</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientname</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>User ident</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientuser</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Client group</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$clientgroup</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>URL</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$url</TH></TR>\n";
+    print "      <TR><TH ALIGN=RIGHT>Target class</TH><TH ALIGN=CENTER>=</TH><TH ALIGN=LEFT>$targetgroup</TH></TR>\n";
     print "    </TABLE>\n\n";
     print "    <P ALIGN=CENTER>If this is wrong, contact<BR>\n";
-    print "      <A HREF=mailto:proxymaster\@foo.bar>proxymaster\@foo.bar</A>\n";
+    print "      <A HREF=mailto:$PROXYEMAIL>$PROXYEMAIL</A>\n";
     print "    </P>\n\n";
   }
   print "  </BODY>\n\n</HTML>\n";

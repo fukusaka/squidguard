@@ -2,9 +2,9 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998 by
-  ElTele Øst AS, Oslo, Norway, with all rights reserved.
-  
+  This software product, squidGuard, is copyrighted (C) 1998-2007
+  by Christine Kronberg, Shalla Secure Services. All rights reserved.
+ 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
@@ -117,20 +117,40 @@ void sgLogRequest(struct LogFile *log,
 		  struct SquidInfo *req,
 		  struct Acl *acl, 
 		  struct AclDest *aclpass,
-		  struct sgRewrite *rewrite)
+                 struct sgRewrite *rewrite,
+                 int request)
 #else
-void sgLogRequest(log, req, acl, aclpass, rewrite)
+void sgLogRequest(log, req, acl, aclpass, rewrite, request)
      struct LogFile *log;
      struct SquidInfo *req;
      struct Acl *acl;
      struct AclDest *aclpass;
      struct sgRewrite *rewrite;
+     int request;
 #endif
 {
   char *ident = req->ident;
   char *srcDomain = req->srcDomain;
   char *srcclass, *targetclass;
   char *rew;
+  char *action;
+  switch(request)
+  {
+  case REQUEST_TYPE_REWRITE:
+    action = "REWRITE";
+    break;
+  case REQUEST_TYPE_REDIRECT:
+    action = "REDIRECT";
+    break;
+  case REQUEST_TYPE_PASS:
+    if(!log->verbose)
+      return;
+    action = "PASS";
+    break;
+  default:
+    action = "-";
+    break;
+  }
   if(rewrite == NULL) 
     rew = "-";
   else 
@@ -143,23 +163,28 @@ void sgLogRequest(log, req, acl, aclpass, rewrite)
     srcclass = "default";
   else
     srcclass = acl->source->name;
-  if(aclpass == NULL || aclpass->name == NULL)
-    if(aclpass->type == ACL_TYPE_INADDR)
-      targetclass = "in-addr";
+  if(aclpass == NULL)
+    targetclass = "unknown";
+  else if(aclpass->name == NULL) {
+     if(aclpass->type == ACL_TYPE_INADDR)
+       targetclass = "in-addr";
     else if(aclpass->type == ACL_TYPE_TERMINATOR)
       targetclass = "none";
     else
       targetclass = "unknown";
+  }
   else
     targetclass =  aclpass->name;
-  sgLog(log->stat,"Request(%s/%s/%s) %s %s/%s %s %s",
+  sgLog(log->stat,"Request(%s/%s/%s) %s %s/%s %s %s %s",
 	srcclass,
 	targetclass,
 	rew,
         req->orig,
-	req->src,srcDomain,
+       req->src,
+       srcDomain,
 	ident,
-	req->method
+       req->method,
+       action
 	);
 }
 

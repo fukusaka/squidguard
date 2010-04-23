@@ -13,13 +13,19 @@ LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 
 RM = rm -f
+MKINSTALLDIRS = mkdir -p
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = $(exec_prefix)/bin
 infodir = $(prefix)/info
+logdir = @sg_logdir@
+configfile = @sg_config@
+dbhomedir = @sg_dbhome@
+SQUIDUSER = @squiduser@
 
-SUBDIRS = src doc test samples contrib
+SUBDIRS = src test samples contrib
+INSTALL_TARGETS = install-conf install-build
 
 all::
 	@echo making $@ in `basename \`pwd\``
@@ -37,15 +43,53 @@ test::
 # Dependencies for installing
 #	
 
-install:: install.bin 
-	@echo making $@ in `basename \`pwd\``
+install:	install-build install-conf
 
-uninstall:: uninstall.bin 
-	@echo making $@ in `basename \`pwd\``
+install-conf:
+	@echo Installing configuration file  ;
+	@if [ ! -d $(prefix)/squidGuard ]; then \
+		$(MKINSTALLDIRS) $(prefix)/squidGuard ; \
+		echo Created directory $(prefix)/squidGuard ; \
+		chown -R $(SQUIDUSER) $(prefix)/squidGuard || exit 1  ; \
+		echo Assigned $(prefix)/squidGuard to user $(SQUIDUSER) ; \
+	fi ; 
+	@if [ ! -d $(dbhomedir) ]; then \
+		$(MKINSTALLDIRS) $(dbhomedir) ; \
+		echo Created directory $(dbhomedir) ; \
+		chown -R $(SQUIDUSER) $(dbhomedir) || exit 1 ; \
+		echo Assigned $(dbhomedir) to user $(SQUIDUSER) ; \
+	fi ; 
+	@if [ ! -d $(logdir) ]; then \
+		$(MKINSTALLDIRS) $(logdir) ; \
+		echo Created directory $(logdir) ; \
+		chown -R $(SQUIDUSER) $(logdir) || exit 1 ; \
+		echo Assigned $(logdir) to user $(SQUIDUSER) ; \
+	fi ; 
+	@if [ ! -d `dirname $(configfile)` ]; then \
+		umask 022 ; \
+		mkdir -p `dirname $(configfile)` ; \
+		echo No configuration directory found. Created `dirname $(configfile)`. ; \
+	fi;
+	@if test ! -f $(configfile); then \
+		cp samples/sample.conf $(configfile) || exit 1  ; \
+		echo Copied sample squidGuard.conf ; \
+		chmod 644 $(configfile) || exit 1 ; \
+		echo $(configfile) is now readable ; \
+		echo The initial configuration is complete. ; \
+	else \
+		echo Configuration file found. Not changing anything ; \
+	fi; 
+	@echo ;
+	@echo Congratulation. SquidGuard is sucessfully installed. ;
+	@echo ;
 
-install.bin uninstall.bin::
-	@echo making $@ in `basename \`pwd\``
-	cd src && $(MAKE) $(MAKEDEFS) $@
+install-build:
+	@echo Installing squidGuard 
+	@if [ ! -d $(bindir) ]; then \
+		$(MKINSTALLDIRS) $(bindir) ; \
+	fi ; \
+	cp src/squidGuard $(bindir) || exit 1 ;  \
+	echo Done. ;
 
 clean::
 	@echo making $@ in `basename \`pwd\``
@@ -61,28 +105,6 @@ distclean::
 	$(RM) *~ *.bak core
 	$(RM) TAGS *.orig
 	$(RM) Makefile config.h config.status config.log config.cache
-
-dist distribution::	version update distclean
-	@fgrep -x 'Current changes in the upcomming release @VERSION@' CHANGELOG \
-	&& echo Please fix the CHANGELOG \
-	&& exit 1
-	@echo making $@ in `basename \`pwd\``
-	test -d "@FTPDIR@"
-	(cd ..;tar cvf - squidGuard-@VERSION@ | gzip > @FTPDIR@/squidGuard-@VERSION@.tar.gz)
-	@echo ""
-	@echo Remember to cleanup in @FTPDIR@:
-	@/bin/ls -l @FTPDIR@
-	@echo ""
-	@echo Distribution file is @FTPDIR@/squidGuard-@VERSION@.tar.gz
-	@echo ""
-	@echo Also remember to update the URL in ~sg/download/downloading.html!
-	@echo ""
-
-tar::	version update distclean
-	@echo making $@ in `basename \`pwd\``
-	test -d "@FTPDIR@/development"
-	(cd ..;tar cvf - squidGuard-@VERSION@ | gzip > @FTPDIR@/development/`date +%Y-%m-%d`.squidGuard-@VERSION@.tar.gz)
-	@echo tar file is @FTPDIR@/development/`date +%Y-%m-%d`.squidGuard-@VERSION@.tar.gz
 
 version::	src/version.h
 	@echo making $@ in `basename \`pwd\``

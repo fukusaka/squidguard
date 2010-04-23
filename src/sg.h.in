@@ -2,9 +2,9 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998 by
-  ElTele Øst AS, Oslo, Norway, with all rights reserved.
-  
+  This software product, squidGuard, is copyrighted (C) 1998-2007
+  by Christine Kronberg, Shalla Secure Services. All rights reserved.
+ 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
@@ -34,7 +34,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/signal.h>
-#include <config.h>
+#include <assert.h>
+#include "config.h"
 #include "version.h"
 #if __STDC__
 # include <stdarg.h>
@@ -67,6 +68,10 @@ int tolower();
 #define ACL_TYPE_DEFAULT    1
 #define ACL_TYPE_TERMINATOR 2
 #define ACL_TYPE_INADDR     3
+
+#define REQUEST_TYPE_REWRITE    1
+#define REQUEST_TYPE_REDIRECT   2
+#define REQUEST_TYPE_PASS       3
 
 #define MAX_BUF 4096
 
@@ -123,6 +128,7 @@ struct LogFile {
   char *parent_name;
   int parent_type;
   int anonymous;
+  int verbose;
   struct LogFileStat *stat;
 };
 
@@ -131,11 +137,18 @@ struct SquidQueue {
   struct SquidQueue *next;
 };
 
-struct UserQuotaInfo {
+struct UserInfo {
+  /* quota tracking */
   time_t time;
   time_t last;
   int consumed;
   char status;
+#ifdef HAVE_LIBLDAP
+  /* LDAP tracking */
+  int ldapuser;                        /* bool: 1 if user loaded from LDAP */
+  int found;                   /* bool: we also cache if not found in LDAP */
+  time_t cachetime;            /* time this item was added to cache */
+#endif
 };
 
 struct UserQuota {
@@ -151,6 +164,7 @@ struct SquidInfo {
   char url[MAX_BUF];
   char orig[MAX_BUF];
   char surl[MAX_BUF];	
+  char furl[MAX_BUF];
   char *strippedurl;
   int  port;
   char src[MAX_BUF];
@@ -158,7 +172,6 @@ struct SquidInfo {
   char ident[MAX_BUF];
   char method[MAX_BUF];
 };
-
 
 
 struct sgRegExp {
@@ -263,6 +276,10 @@ struct Source {
   int cont_search;
   struct UserQuota userquota;
   struct LogFile *logfile;
+#ifdef HAVE_LIBLDAP
+  char **ldapurls;                     /* dynamic array of url strings */
+  int ldapurlcount;                    /* current size of pointer array */
+#endif
   struct Source *next;
 };
 
@@ -295,7 +312,7 @@ int lineno;
 char   *sgParseRedirect	__P((char *, struct SquidInfo *, struct Acl *, struct AclDest *));
 char   *sgAclAccess __P((struct Source *, struct Acl *, struct SquidInfo *));
 
-void   sgLogFile __P((int, int, char *));
+void   sgLogFile __P((int, int, int, char *));
 struct LogFileStat *sgLogFileStat __P((char *));
 
 void   sgReadConfig __P((char *));
@@ -303,7 +320,7 @@ void   sgLog __P((struct LogFileStat *, char *, ...));
 void   sgLogError __P((char *, ...));
 void   sgLogFatalError __P((char *, ...));
 void   sgSetGlobalErrorLogFile __P(());
-void   sgLogRequest __P((struct LogFile *, struct SquidInfo *, struct Acl *, struct AclDest *, struct sgRewrite *));
+void   sgLogRequest __P((struct LogFile *, struct SquidInfo *, struct Acl *, struct AclDest *, struct sgRewrite *, int));
 int    parseLine __P((char *, struct SquidInfo *));
 char   *sgStripUrl __P((char *));
 
@@ -321,6 +338,10 @@ void   sgSource __P((char *));
 void   sgSourceEnd __P(());
 void   sgSourceUser __P((char *));
 void   sgSourceUserList __P((char *));
+#ifdef HAVE_LIBLDAP
+void   sgSourceLdapUserSearch __P((char *));
+#endif
+void   sgSourceExecUserList __P((char *));
 void   sgSourceDomain __P((char *));
 void   sgSourceIpList __P((char *));
 struct Source *sgSourceFindName __P((char *));
@@ -369,6 +390,7 @@ void   sgAclSetValue __P((char *,char *,int));
 struct Acl *sgAclCheckSource __P((struct Source *));
 
 struct sgRegExp *sgNewPatternBuffer __P((char *, int));
+void   sgFreePatternBuffer __P((struct sgRegExp *));
 int    sgRegExpMatch __P((struct sgRegExp *, char *));
 char   *sgRegExpSubst __P((struct sgRegExp *, char *));
 
@@ -403,3 +425,22 @@ void   usage __P((void));
 void   yyerror __P((char *));
 int    yyparse __P((void));
 int    yylex __P((void));
+void   sgFreeAllLists __P((void));
+void   sgFreeDestination __P((struct Destination *));
+void   sgFreeSource __P((struct Source *));
+void   sgFreeIp __P((struct Ip *));
+void   sgFreeSetting __P((struct Setting *));
+void   sgFreeTime __P((struct Time *));
+void   sgFreeRewrite __P((struct sgRewrite *));
+void   sgFreeAcl __P((struct Acl *));
+void   sgFreeAclDest __P((struct AclDest *));
+void   sgFreeLogFileStat __P((struct LogFileStat *));
+
+int    sgFindUser __P((struct Source *, char *, struct UserInfo **));
+#ifdef HAVE_LIBLDAP
+int    sgDoLdapSearch __P((const char *, const char *));
+#endif
+
+int    expand_url __P((char *, size_t, const char *, const char *));
+
+

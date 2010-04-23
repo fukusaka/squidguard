@@ -2,8 +2,8 @@
 # CONFIG FILE FOR SQUIDGUARD
 #
 
-dbhome @prefix@/squidGuard/db
-logdir @prefix@/squidGuard/logs
+dbhome @sg_dbhome@
+logdir @sg_logdir@
 
 #
 # TIME RULES:
@@ -20,8 +20,8 @@ time workhours {
 #
 
 rew dmz {
-	s@://admin/@://admin.foo.bar.no/@i
-	s@://foo.bar.no/@://www.foo.bar.no/@i
+	s@://admin/@://admin.foo.bar.de/@i
+	s@://foo.bar.de/@://www.foo.bar.de/@i
 }
 
 #
@@ -56,7 +56,7 @@ dest adult {
 	domainlist	dest/adult/domains
 	urllist		dest/adult/urls
 	expressionlist	dest/adult/expressions
-	redirect 	http://admin.foo.bar.no/cgi/blocked?clientaddr=%a+clientname=%n+clientident=%i+srcclass=%s+targetclass=%t+url=%u
+	redirect 	http://admin.foo.bar.de/cgi/blocked?clientaddr=%a+clientname=%n+clientuser=%i+clientgroup=%s+targetgroup=%t+url=%u
 }
 
 
@@ -78,6 +78,6 @@ acl {
 	default {
 		pass	 local none
 		rewrite	 dmz
-		redirect http://admin.foo.bar.no/cgi/blocked?clientaddr=%a+clientname=%n+clientident=%i+srcclass=%s+targetclass=%t+url=%u
+		redirect http://admin.foo.bar.de/cgi/blocked?clientaddr=%a+clientname=%n+clientuser=%i+clientgroup=%s+targetgroup=%t+url=%u
 	}
 }

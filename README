@@ -15,7 +15,15 @@ a squid cache.  squidGuard uses squid's standard redirector interface.
 			       ~~~~~~~
 
 The initial squidGuard concept was designed by Pål Baltzersen and was
-implemented and is maintained and extended by Lars Erik Håland at
-ElTele Øst AS and made freely available by permission of
+implemented and was maintained and extended by Lars Erik Håland at
+ElTele Øst AS. 
+Since December 2006 squidGuard is maintained by Shalla Secure Services.
 
-			    ElTele Øst AS
+
+			     Distribution
+			     ~~~~~~~~~~~~
+
+squidGuard is distributed by Shalla Secure Services under GPLv2 and may
+therefore be freely used and distributed according to the conditions of
+the licence. 
+

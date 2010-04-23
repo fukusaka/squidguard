@@ -38,7 +38,7 @@ test1 test2::	test1.conf test2.conf ../src/squidGuard requests
 	    wc -l blacklist/domains blacklist/urls blacklist/expressions;\
 	fi
 	@wc -l<requests | awk '{printf "Running $@ with %d requests..",$$1}'
-	@-cat requests | ../src/squidGuard -c $@.conf>$@.output; exit 0
+	@-cat requests | ../src/squidGuard -c $@.conf | grep -v Processing |grep -v done >$@.output; exit 0
 	@echo .Done
 	@echo @ac_n@ "Checking number of output lines..@ac_c@"
 	@test `wc -l<requests` -eq `wc -l<$@.output`

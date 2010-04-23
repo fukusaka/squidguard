@@ -2,9 +2,9 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998 by
-  ElTele Øst AS, Oslo, Norway, with all rights reserved.
-  
+  This software product, squidGuard, is copyrighted (C) 1998-2007
+  by Christine Kronberg, Shalla Secure Services. All rights reserved.
+ 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
@@ -17,18 +17,9 @@
 */
 
 #include "sg.h"
+#include "sgEx.h"
 
-extern int sig_hup;           
-extern int sig_alrm;           
-extern int globalDebugTimeDelta;
-extern char **globalArgv;           
-extern char **globalEnvp;           
-extern struct Acl *defaultAcl;
-extern struct LogFileStat *LogFileStat;
-extern struct Source *lastActiveSource;
-
-extern struct Source *Source ;
-extern struct Destination *Dest ;
+/* #define METEST 8; */
 
 #if __STDC__
 void sgHandlerSigHUP(int signal)
@@ -48,24 +39,31 @@ void sgReloadConfig()
   sig_hup = 0;
   sgLogError("got sigHUP reload config");
   for(sg = LogFileStat; sg != NULL; sg = sg->next){ /* closing logfiles */
-    if(sg->fd == stderr || sg->fd == stdout)
+    if(sg->fd == stderr || sg->fd == stdout) {
       continue;
+    }
     fclose(sg->fd);
   }
   for(src = Source; src != NULL; src = src->next){
-    if(src->domainDb != NULL && src->domainDb->dbp != NULL)
+    if(src->domainDb != NULL && src->domainDb->dbp != NULL) {
       (void)src->domainDb->dbp->close(src->domainDb->dbp,0);
-    if(src->userDb != NULL && src->userDb->dbp != NULL)
+    }
+    if(src->userDb != NULL && src->userDb->dbp != NULL) {
       (void)src->userDb->dbp->close(src->userDb->dbp,0);
+    }
   }
   for(dest = Dest; dest != NULL; dest = dest->next){
-    if(dest->domainlistDb != NULL && dest->domainlistDb->dbp != NULL)
+    if(dest->domainlistDb != NULL && dest->domainlistDb->dbp != NULL) {
       (void)dest->domainlistDb->dbp->close(dest->domainlistDb->dbp,0);
-    if(dest->urllistDb != NULL && dest->urllistDb->dbp != NULL)
+    }
+    if(dest->urllistDb != NULL && dest->urllistDb->dbp != NULL) {
       (void)dest->urllistDb->dbp->close(dest->urllistDb->dbp,0);
+    }
   }
+  sgFreeAllLists();
   execve(*globalArgv,globalArgv, globalEnvp);
   fprintf(stderr,"error execve: %d\n",errno);
+  exit(1);
 }
 
 #if __STDC__
@@ -93,62 +91,76 @@ int parseLine(line, s)
 #endif
 {
   char *p, *d = NULL, *a = NULL, *e = NULL, *o, *field;
-  char *up, *upp;
-  int i = 0, hex;
-  char c,h1,h2;
+  int i = 0;
+  char c;
+  int report_once = 1;
+  size_t strsz;
+  int ndx = 0;
+  
   field = strtok(line,"\t ");
+  /*field holds each fetched url*/
+  /* Let's first decode the url and then test it. Fixes bug2. */
+  HTUnEscape(field);
+
   if(field == NULL)
     return 0;
   strcpy(s->orig,field);
-  for(p=field; *p != '\0'; p++) /* convert url to lowercase chars */
+  /* Now convert url to lowercase chars */ 
+  for(p=field; *p != '\0'; p++) {
     *p = tolower(*p);
+  }
   s->url[0] = s->protocol[0] = s->domain[0] = s->src[0] = s->ident[0] = 
     s->method[0] = s->srcDomain[0] = s->surl[0] =  '\0';
   s->dot = 0;
   s->port = 0;
   p = strstr(field,"://");
-  if(p == NULL) { /* no protocl, defaults to http */
+  /* sgLogError("Debug P2 = %s", p); */
+  if(p == NULL) { /* no protocol, defaults to http */
     strcpy(s->protocol,"unknown");
     p = field;
   } else {
     strncpy(s->protocol,field,p - field);
     *(s->protocol + ( p - field)) = '\0';
-    p+=3;
-  }
-    /*do some url decoding */
-  up=field;
-  upp= s->url;
-  while(up[i] != '\0'){
-    if(up[i] == '%'){
-      if(isxdigit(up[i+1]) && isxdigit(up[i+2])){
-        h1 = up[i+1] >= 'a' ? up[i+1] - ('a' - 'A') : up[i+1];
-        h2 = up[i+2] >= 'a' ? up[i+2] - ('a' - 'A') : up[i+2];
-        hex = h1 >= 'A' ? h1 - 'A' - 10 : h1 - '0';
-        hex *= 16;
-        hex += h2 >= 'A' ? h2 - 'A' - 10 : h2 - '0';
-	/* don't convert whitespace, newline and carriage return */
-	if(hex == 0x20 || hex == 0x09 || hex == 0x0a || hex == 0x0d){
-	  *upp++ = up[i++];
-	  *upp++ = up[i++];
-	  *upp++ = up[i];
-	} else { 
-	  *upp++ = hex;
-	  i+=2;
-	}
-      } else { /* an errorous hex code, we ignore it */
-        *upp++ = up[i++];
-        *upp++ = up[i++];
-        *upp++ = up[i];
+    p+=3; /* JMC -- 3 == strlen("://") */
+    /* Now p only holds the pure URI */
+    /* Fix for multiple slash vulnerability (bug1). */
+    /* Check if there are still two or more slashes in sequence which must not happen */
+    strsz = strlen(p);
+
+    /* loop thru the string 'p' until the char '?' is hit or the "end" is hit */
+    while('?' != p[ndx] && '\0' != p[ndx])
+    {
+        /* in case this is a '://' skip over it, but try to not read past EOS */
+        if(3 <= strsz-ndx) {
+          if(':' == p[ndx] && '/' == p[ndx+1] && '/' == p[ndx+2]) {
+           ndx+=3; /* 3 == strlen("://"); */
+          }
+        }
+        
+       /* if this char and the next char are slashes,
+ *           then shift the rest of the string left one char */
+       if('/' == p[ndx] && '/' == p[ndx+1]) {
+         size_t sz = strlen(p+ndx+1);
+         strncpy(p+ndx,p+ndx+1, sz);
+         p[ndx+sz] = '\0';
+          if(1 == report_once) {
+             sgLogError("Warning: Possible bypass attempt. Found multiple slashes where only one is expected: %s", s->orig); 
+            report_once--;
+          }
       }
-    } else {
-      *upp++ = up[i];
+      else
+      {
+        /* increment the string indexer */
+	assert(ndx < strlen(p));
+        ndx++;
+      }
     }
-    i++;
   }
-  *upp++=up[i];
-  *upp='\0';
+
   i=0;
   d = strchr(p,'/'); /* find domain end */
+  /* Check for the single URIs (d) */
+  /* sgLogError("URL: %s", d); */
   e = d;
   a = strchr(p,'@'); /* find auth  */
   if(a != NULL && ( a < d || d == NULL)) 
@@ -163,6 +175,7 @@ int parseLine(line, s)
     e = a;
   }
   o=p;
+  strcpy(s->furl,p);
   if (p[0] == 'w' || p[0] == 'f' ) {
     if ((p[0] == 'w' && p[1] == 'w' && p[2] == 'w') ||
 	(p[0] == 'w' && p[1] == 'e' && p[2] == 'b') ||
@@ -192,6 +205,7 @@ int parseLine(line, s)
   if(d != NULL)
     strcat(s->surl,d);
   s->strippedurl = s->surl;
+
   while((p = strtok(NULL," \t\n")) != NULL){
     switch(i){
     case 0: /* src */
@@ -200,10 +214,12 @@ int parseLine(line, s)
 	strncpy(s->src,p,o-p);
 	strcpy(s->srcDomain,o+1);
 	s->src[o-p]='\0';
-	if(*s->srcDomain == '-')
+	if(*s->srcDomain == '-') {
 	  s->srcDomain[0] = '\0';
-      } else
+	}
+      } else {
 	strcpy(s->src,p);
+      }
       break;
     case 1: /* ident */
       if(strcmp(p,"-")){
@@ -219,10 +235,14 @@ int parseLine(line, s)
     }
     i++;
   }
-  if(s->domain[0] == '\0')
+  if(s->domain[0] == '\0') {
+/*    sgLogError("Debug: Domain is NULL: %s", s->orig); */
     return 0;
-  if(s->method[0] == '\0')
+  }
+  if(s->method[0] == '\0') {
+/*    sgLogError("Debug: Method is NULL: %s", s->orig); */
     return 0;
+  }
   return 1;
 }
 
@@ -239,19 +259,23 @@ char *sgStripUrl (url)
   d = strchr(p,'/'); /* find domain end */
   e = d;
   a = strchr(p,'@'); /* find auth  */
-  if(a != NULL && ( a < d || d == NULL)) 
+  if(a != NULL && ( a < d || d == NULL))  {
     p = a + 1;
+  }
   a = strchr(p,':'); /* find port */;
-  if(a != NULL && (a < d || d == NULL))
+  if(a != NULL && (a < d || d == NULL)) {
     e = a;
-  if(e == NULL)
+  }
+  if(e == NULL) {
     strcpy(newurl,p);
+  }
   else {
     strncpy(newurl,p,e - p);
     *(newurl + (e - p)) = '\0';
   }
-  if(d != NULL)
+  if(d != NULL) {
     strcat(newurl,d);
+  }
   return newurl;
 }
 
@@ -268,17 +292,20 @@ char *sgSkipHostPart (domain)
 #endif
 {
   char *p = domain , *d1 = NULL, *d2 = NULL, *path = NULL;
-  if((path = (char *) strchr(p,'/')) == NULL)
+  if((path = (char *) strchr(p,'/')) == NULL) {
     path = domain; 
+  }
   while((p = (char *) strchr(p,'.')) != NULL ){
-    if(p > path && path != domain)
+    if(p > path && path != domain) {
       break;
+    }
     d2 = d1;
     d1 = p;
     p++;
   }
-  if(d2 != NULL)
+  if(d2 != NULL) {
     return d2+1;
+  }
   return domain;
 }
 
@@ -491,6 +518,22 @@ struct sgRegExp *sgNewPatternBuffer(pattern, flags)
   return regexp;
 }
 
+/*
+   Deletes the buffer memory, so save the next pointer first before
+   calling this function.
+*/
+#if __STDC__
+void sgFreePatternBuffer(struct sgRegExp *regexp)
+#else
+void sgFreePatternBuffer(regexp)
+     struct sgRegExp *regexp;
+#endif
+{
+  sgFree(regexp->pattern);
+  sgFree(regexp->compiled);
+  sgFree(regexp);
+}
+
 #if __STDC__
 char *sgRegExpSubst(struct sgRegExp *regexp, char *pattern)
 #else
@@ -500,13 +543,13 @@ char *sgRegExpSubst(regexp, pattern)
 #endif
 {
   struct sgRegExp *re;
-  regmatch_t pm;
+  regmatch_t pm[10];
   static char newstring[MAX_BUF];
   char *result = NULL, *p;
   int substlen;
   *newstring='\0';
   for(re = regexp; re != NULL; re = re->next){
-    if (regexec (re->compiled, pattern, 1, &pm, 0) != 0){
+    if (regexec (re->compiled, pattern, sizeof(pm) / sizeof(pm[0]), pm, 0) != 0){
       result = NULL;
     } else {
       substlen = strlen(re->substitute);
@@ -516,21 +559,72 @@ char *sgRegExpSubst(regexp, pattern)
 	*newstring = '\0';
       p = newstring;
       do {
-	if((p - newstring)+ pm.rm_so  >= MAX_BUF)
+	if((p - newstring)+ pm[0].rm_so  >= MAX_BUF)
 	  break;
-	p = strncat(newstring,pattern,pm.rm_so);
-	if((p - newstring)+ substlen  >= MAX_BUF)
-	  break;
-	p = strcat(newstring,re->substitute);	
-	pattern = pattern + pm.rm_eo;
-      } while(regexec (re->compiled, pattern, 1, &pm, REG_NOTBOL)== 0 &&
-	      re->global);
+      p = strncat(newstring,pattern,pm[0].rm_so);
+      {
+          char *p_cur;
+          char *p_next;
+
+          for (p_next = p_cur = re->substitute;
+              p_next < (re->substitute + substlen);
+              p_next++)
+          {
+              if (*p_next == '\\')
+              {
+                  if (p_cur < p_next)
+                  {
+                      if (((p - newstring) + (p_next - p_cur)) >= MAX_BUF)
+                          goto err;
+                      p = strncat(newstring, p_cur, p_next - p_cur);
+                  }
+                  p_next++;
+                  if (p_next < (re->substitute + substlen)
+                      && '0' <= *p_next && *p_next <= '9')
+                  {
+                      int i = *p_next - '0';
+                      if ((p - newstring) + (pm[i].rm_eo - pm[i].rm_so) >= MAX_BUF)
+                          goto err;
+                      p = strncat(newstring, pattern + pm[i].rm_so, pm[i].rm_eo - pm[i].rm_so);
+                  }
+                  else
+                  {
+                      if ((p - newstring + 1) >= MAX_BUF)
+                          goto err;
+                      p = strncat(newstring, p_next, 1);
+                  }
+                  p_cur = p_next + 1;
+              }
+              else if (*p_next == '&')
+              {
+                  if (p_cur < p_next)
+                  {
+                      if (((p - newstring) + (p_next - p_cur)) >= MAX_BUF)
+                          goto err;
+                      p = strncat(newstring, p_cur, p_next - p_cur);
+                  }
+                  if (((p - newstring) + (pm[0].rm_eo - pm[0].rm_so)) >= MAX_BUF)
+                      goto err;
+                  p = strncat(newstring, pattern + pm[0].rm_so, pm[0].rm_eo - pm[0].rm_so);
+                  p_cur = p_next + 1;
+              }
+          }
+          if (p_cur < p_next)
+          {
+              if (((p - newstring) + (p_next - p_cur)) >= MAX_BUF)
+                  goto err;
+              p = strncat(newstring, p_cur, p_next - p_cur);
+          }
+      }
+      pattern = pattern + pm[0].rm_eo;
+     } while(regexec (re->compiled, pattern, sizeof(pm) / sizeof(pm[0]), pm, REG_NOTBOL)== 0 && re->global);
       if((p - newstring)+ strlen(pattern)  <= MAX_BUF)
 	p = strcat(newstring,pattern);
       result = newstring;
       break;
     }
   }
+ err:
   return result;
 }
 
@@ -584,12 +678,10 @@ char *sgParseRedirect(redirect, req, acl, aclpass)
       break;
     case 'q': /* userquota info */
       if(s != NULL && s->userquota.seconds != 0 && strcmp(req->ident, "-")) {
-	struct UserQuotaInfo *userquota;
+       struct UserInfo *userquota;
 	if(defined(s->userDb, req->ident, (char **) &userquota) == 1){
 	  char qbuf[150];
-	  sprintf(qbuf, "%d-%d-%d-%d-%d-%d", 
-		  s->userquota.renew, s->userquota.seconds, userquota->status,
-		  userquota->time, userquota->last, userquota->consumed);
+	  sprintf(qbuf, "%d-%d-%d-%d-%d-%d", s->userquota.renew, s->userquota.seconds, userquota->status, userquota->time, userquota->last, userquota->consumed);
 	  strcat(buf, qbuf);
 	} else {
 	  strcat(buf, "noquota");
@@ -666,7 +758,18 @@ void sgEmergency ()
 #endif
 {
   char buf[MAX_BUF];
-  sgLogError("going into emergency mode");
+  extern char *globalCreateDb;
+  extern int passthrough;     /* from main.c */
+  if (globalCreateDb == NULL) {
+     if (passthrough == 1) {
+        sgLogError("Warning: Not going into emergency mode because -P was used");
+	fprintf( stderr, "              ****************\n");
+        fprintf( stderr, "FAILURE! Check your log file for problems with the database files!\n" );
+	fprintf( stderr, "              ****************\n");
+        exit(1);
+     }
+  }
+  sgLogError("Going into emergency mode");
   while(fgets(buf, MAX_BUF, stdin) != NULL){
     puts("");
     fflush(stdout);
@@ -752,16 +855,21 @@ char *niso(t)
 }
 
 #if __STDC__
-struct UserQuotaInfo *setuserquota()
+struct UserInfo *setuserinfo()
 #else
-struct UserQuotaInfo *setuserquota()
+struct UserInfo *setuserinfo()
 #endif
 {
-  static struct UserQuotaInfo uq;
+  static struct UserInfo uq;
   uq.status = 0; 
   uq.time = 0; 
   uq.consumed = 0; 
   uq.last = 0; 
+#ifdef HAVE_LIBLDAP
+  uq.ldapuser = 0;
+  uq.found = 0;
+  uq.cachetime = 0;
+#endif
   return &uq;
 }
 

@@ -38,7 +38,7 @@ logdir	= @sg_logdir@
 cfgdir	= @sg_cfgdir@
 infodir	= $(prefix)/info
 
-OBJS	= main.o sgLog.o sgDb.o sgDiv.o y.tab.o lex.yy.o
+OBJS	= main.o sgLog.o sgDb.o HTParse.o sgDiv.o sgFree.o y.tab.o lex.yy.o
 
 all::
 	@echo making $@ in `basename \`pwd\``
@@ -58,8 +58,14 @@ main.o:	main.c sg.h
 sgLog.o:	sgLog.c sg.h
 	$(COMPILE) -c sgLog.c
 
-sgDiv.o: sgDiv.c sg.h
+HTParse.o:	HTParse.c wwwsys.h HTEscape.h
+	$(COMPILE) -c HTParse.c
+
+sgDiv.o: sgDiv.c sg.h sgEx.h
 	$(COMPILE) -c sgDiv.c
+
+sgFree.o: sgFree.c sg.h sgEx.h
+	$(COMPILE) -c sgFree.c
 
 sgDb.o:	sgDb.c sg.h
 	$(COMPILE) -c sgDb.c
@@ -67,18 +73,37 @@ sgDb.o:	sgDb.c sg.h
 lex.yy.o: lex.yy.c y.tab.h sg.h
 	$(COMPILE) -c lex.yy.c
 
-y.tab.o: y.tab.c y.tab.h sg.h
+y.tab.o: y.tab.c y.tab.h sg.h sgEx.h
 	$(COMPILE) -c y.tab.c
 
 lex.yy.c: sg.l sg.h
-	$(LEX) sg.l || cp lex.yy.c.flex lex.yy.c
+	@if [ $(LEX) != ":" ]; then \
+	$(LEX) sg.l  ; \
+	else \
+	echo " " ; \
+	echo "No flex/lex found. Copy lex.yy.c.flex to lex.yy.c. " ; \
+	echo " " ; \
+	cp lex.yy.c.flex lex.yy.c ; \
+	fi ;
 
 lex.yy.c.flex: sg.l sg.h
 	$(LEX) sg.l
 	mv -f lex.yy.c lex.yy.c.flex
 
 y.tab.c y.tab.h: sg.y sg.h
-	$(YACC) -d sg.y || (cp y.tab.c.bison y.tab.c && cp y.tab.h.bison y.tab.h)
+	@if [ "$(YACC)" = "yacc" ]; then \
+	   if [ ! -x $(YACC) ]; then \
+	      echo " " ; \
+	      echo "No yacc/bison found. Copy prepared files for y.tab.h and y.tab.c over. " ; \
+	      echo " " ; \
+	      cp y.tab.h.bison y.tab.h ; \
+	      cp y.tab.c.bison y.tab.c ; \
+	   else \
+	      $(YACC) -d sg.y  ; \
+	   fi ; \
+	else \
+	   $(YACC) -d sg.y  ; \
+	fi ;
 
 y.tab.c.bison y.tab.h.bison: sg.y sg.h
 	$(YACC) -d sg.y

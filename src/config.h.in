@@ -16,5 +16,14 @@
 /* Define if you have the signal function.  */
 #undef HAVE_SIGNAL
 
+/* Define if LDAP support for authentication should be comiled */
+#undef HAVE_LIBLDAP
+
+/* Define if MYSQL support for authentication should be comiled */
+#undef HAVE_MYSQL
+
 /* Define if you have dbversion greater than 3.2  */
 #undef DB_VERSION_GT2
+
+/* Define if you have dbversion greater than 4.0  */
+#undef DB_VERSION_GT3

@@ -6,15 +6,12 @@
 # By Pål Baltzersen 1999-2000 (pal.baltzersen@ost.eltele.no)
 # Based on earlier work by Lars Erik Håland (leh@nimrod.no)
 #
-# The current version may be found anytime at:
-# http://ftp.ost.eltele.no/pub/www/proxy/squidGuard/contrib/squidGuardRobot/
-#
 
 # By accepting this notice, you agree to be bound by the following
 # agreements:
 # 
-# This software product, squidGuardRobot, is copyrighted (C) 2000 by
-# ElTele Øst AS, Oslo, Norway, with all rights reserved.
+# This software product, squidGuard, is copyrighted (C) 1998-2007
+# by Christine Kronberg, Shalla Secure Services. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License (version 2) as

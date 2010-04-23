@@ -24,6 +24,11 @@ http://info.foo.bar/cgi/blocked?clientaddr=10.0.1.23&clientname=&clientuser=&cli
 
 
 
+http://info.foo.bar/cgi/blocked?clientaddr=10.64.140.1&clientname=&clientuser=&clientgroup=default&targetgroup=none&url=http://www.sexpatrol.tsx.org/big-jugs.gif 10.64.140.1/- - GET
+http://info.foo.bar/cgi/blocked?clientaddr=10.64.14.1&clientname=&clientuser=&clientgroup=default&targetgroup=none&url=http://wwwcache.cleo.net.uk/?DEBUG=1 10.64.14.1/- - GET
+
+
+
 
 http://info.foo.bar/cgi/blocked?clientaddr=10.0.1.23&clientname=&clientuser=&clientgroup=kids&targetgroup=blacklist&url=http://clit13.sextracker.com/clit? 10.0.1.23/- - GET
 
@@ -954,7 +959,7 @@ http://info.foo.bar/cgi/blocked?clientaddr=10.0.3.174&clientname=&clientuser=gur
 http://info.foo.bar/cgi/blocked?clientaddr=10.0.5.15&clientname=&clientuser=&clientgroup=default&targetgroup=none&url=http://www.oslo-energi.no/gifs/nav5off.gif 10.0.5.15/- - GET
 http://info.foo.bar/cgi/blocked?clientaddr=10.0.5.15&clientname=&clientuser=&clientgroup=default&targetgroup=none&url=http://www.oslo-energi.no/gifs/tittel_1_fade.gif 10.0.5.15/- - GET
 
-http://info.foo.bar/cgi/blocked?clientaddr=10.0.3.144&clientname=&clientuser=&clientgroup=kids&targetgroup=blacklist&url=http://c1.thecounter.com/id=118474&size=800&colors=8&referer=http%3a//www.uib.no/guide/index.html&java=true 10.0.3.144/- - GET
+http://info.foo.bar/cgi/blocked?clientaddr=10.0.3.144&clientname=&clientuser=&clientgroup=kids&targetgroup=blacklist&url=http://c1.thecounter.com/id=118474&size=800&colors=8&referer=http://www.uib.no/guide/index.html&java=true 10.0.3.144/- - GET
 
 
 

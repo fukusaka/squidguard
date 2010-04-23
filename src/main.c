@@ -2,8 +2,8 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998 by
-  ElTele Øst AS, Oslo, Norway, with all rights reserved.
+  This software product, squidGuard, is copyrighted (C) 1998-2007
+  by Christine Kronberg, Shalla Secure Services. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
@@ -19,34 +19,33 @@
 #include "sg.h"
 
 struct Setting *lastSetting = NULL;
-struct Setting *Setting = NULL;
+struct Setting *Setting = NULL;                        /* linked list, Calloc */
 
 struct Source *lastSource = NULL;
-struct Source *Source = NULL;
-struct Source *saveSource = NULL;
+struct Source *Source = NULL;                  /* linked list, Calloc */
 
 struct Destination *lastDest = NULL;
-struct Destination *Dest = NULL;
+struct Destination *Dest = NULL;               /* linked list, Calloc */
 
 struct sgRewrite *lastRewrite = NULL;
-struct sgRewrite *Rewrite = NULL;
+struct sgRewrite *Rewrite = NULL;              /* linked list, Calloc */
 struct sgRegExp *lastRewriteRegExec = NULL;
 
 struct Time *lastTime = NULL;
-struct Time *Time = NULL;
+struct Time *Time = NULL;                      /* linked list, Calloc */
 
 struct LogFileStat *globalErrorLog = NULL;
 struct LogFile *globalLogFile = NULL;
 
 struct LogFileStat *lastLogFileStat;
-struct LogFileStat *LogFileStat;
+struct LogFileStat *LogFileStat;               /* linked list, Calloc */
 
 struct TimeElement *lastTimeElement = NULL;
 struct TimeElement *TimeElement = NULL;
 
 struct Acl *lastAcl = NULL;
 struct Acl *defaultAcl = NULL;
-struct Acl *Acl = NULL;
+struct Acl *Acl = NULL;                                /* linked list, Calloc */
 struct AclDest *lastAclDest = NULL;
 
 struct sgRegExp *lastRegExpDest;
@@ -59,6 +58,8 @@ int globalDebugTimeDelta = 0;
 int globalDebug = 0;
 int globalPid = 0;
 int globalUpdate = 0;
+int passthrough = 0;
+int showBar = 0;   /* Do not display the progress bar. */
 char *globalCreateDb = NULL;
 int failsafe_mode = 0;
 int sig_hup = 0;
@@ -72,9 +73,9 @@ int main(int    argc,
          char   **argv,
 	 char   **envp)
 #else
-int main(argc, argv)
+int main(argc, argv, envp)
      int argc;
-     char *argv[],
+     char *argv[];
      char *envp[];
 #endif
 {
@@ -93,7 +94,7 @@ int main(argc, argv)
   gettimeofday(&start_time, NULL);
   progname = argv[0];
   globalPid = getpid();
-  while ((ch = getopt(argc, argv, "hduC:t:c:v")) != EOF)
+  while ((ch = getopt(argc, argv, "hbduPC:t:c:v")) != EOF)
     switch (ch) {
     case 'd':
        globalDebug = 1;
@@ -101,8 +102,13 @@ int main(argc, argv)
     case 'c':
       configFile = optarg;
       break;
+    case 'b':
+      showBar = 1;
     case 'C':
       globalCreateDb = optarg;
+      break;
+    case 'P':
+      passthrough = 1;
       break;
     case 'u':
       globalUpdate = 1;
@@ -165,22 +171,26 @@ int main(argc, argv)
   tmp[MAX_BUF-1] = '\0';
   while(1) {
     while(fgets(buf, MAX_BUF, stdin) != NULL){
-      if(sig_hup)
+      if(sig_hup) {
 	sgReloadConfig();
+      }
       if(failsafe_mode) {
 	puts("");
 	fflush(stdout);
-	if(sig_hup)
+	if(sig_hup){
           sgReloadConfig();
+	}
 	continue;
       }
       if(parseLine(buf,&squidInfo) != 1){
-	sgLogError("error parsing squid line: %s",buf);
+	sgLogError("Error parsing squid line: %s",buf);
 	puts("");
-      } else {
+      }
+        else {
 	src = Source;
 	for(;;){
 	  strncpy(tmp,squidInfo.src,MAX_BUF-1);
+          tmp[MAX_BUF-1] = 0;   /* force null termination */
 	  globalLogFile = NULL;
 	  src = sgFindSource(src, tmp,squidInfo.ident,squidInfo.srcDomain);
 	  acl = sgAclCheckSource(src);
@@ -208,6 +218,7 @@ int main(argc, argv)
 	    fprintf(stdout,"%s %s/%s %s %s\n",redirect,squidInfo.src,
 		    squidInfo.srcDomain,squidInfo.ident,
 		    squidInfo.method);
+            /* sgLogError("%s %s/%s %s %s\n",redirect,squidInfo.src,squidInfo.srcDomain,squidInfo.ident,squidInfo.method);  */
 	    break;
 	  }
 	} /*for(;;)*/
@@ -242,14 +253,18 @@ void usage()
 #endif
 {
   fprintf(stderr, 
-	  "Usage: squidGuard [-u] [-C block] [-t time] [-c file] [-v] [-d]\n");
+	  "Usage: squidGuard [-u] [-C block] [-t time] [-c file] [-v] [-d] [-P]\n");
   fprintf(stderr, "Options:\n");
   fprintf(stderr, "  -v          : show version number\n");
   fprintf(stderr, "  -d          : all errors to stderr\n");
+  fprintf(stderr, "  -b          : switch on the progress bar when updating the blacklists\n");
   fprintf(stderr, "  -c file     : load alternate configfile\n");
-  fprintf(stderr, "  -t time     : specify staruptime on format: yyyy-mm-ddTHH:MM:SS\n");
+  fprintf(stderr, "  -t time     : specify startup time in the format: yyyy-mm-ddTHH:MM:SS\n");
   fprintf(stderr, "  -u          : update .db files from .diff files\n");
   fprintf(stderr, "  -C file|all : create new .db files from urls/domain files\n");
   fprintf(stderr, "                specified in \"file\".\n");
+  fprintf(stderr, "  -P          : do not go into emergency mode when an error with the \n");
+  fprintf(stderr, "                blacklists is encountered.\n");
+
   exit(1);
 }

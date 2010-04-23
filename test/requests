@@ -21,6 +21,11 @@ http://www.sohard.com/klimaxxx2/1603027g.jpg 10.0.1.23/- foo GET
 http://counter7.sextracker.com/c2/id/2/130230 10.0.1.23/- - GET
 http://amateur.freepictures.com/amateur/images/tn_fpcheer017_jpg.jpg 10.0.1.23/- - GET
 http://w5.hitbox.com/wc/m60302249.cgi 10.0.1.23/- gurr GET
+http://www.google.co.uk/ 10.0.0.1/- - GET
+http://www.google.co.uk/search?hl=en&q=google+whack&btnG=Google+Search&meta= 10.0.0.1/- - GET
+http://www.google.com/ 10.0.0.1/- - GET
+http://www.sexpatrol.tsx.org/big-jugs.gif 10.64.140.1/- - GET
+http://wwwcache.cleo.net.uk/?DEBUG=1 10.64.14.1/- - GET
 http://www.golden6.com/gallery/0529/lr_pict0017_jpg.gif 10.0.1.23/- - GET
 http://www.golden6.com/gallery/0529/tn_1pict0011_jpg.jpg 10.0.1.23/- - GET
 http://www.golden6.com/gallery/0529/tn_1pict0017_jpg.jpg 10.0.1.23/- - GET
@@ -954,7 +959,7 @@ http://209.226.29.14/data/hdrbut2.gif 10.0.3.174/- - GET
 http://www.oslo-energi.no/gifs/nav5off.gif 10.0.5.15/- - GET
 http://www.oslo-energi.no/gifs/tittel_1_fade.gif 10.0.5.15/- - GET
 http://www.fotball.no/_img/toppframe_bg.gif 10.0.3.125/- gurr GET
-http://c1.thecounter.com/id=118474&size=800&colors=8&referer=http%3a//www.uib.no/guide/index.html&java=true 10.0.3.144/- - GET
+http://c1.thecounter.com/id=118474&size=800&colors=8&referer=http://www.uib.no/guide/index.html&java=true 10.0.3.144/- - GET
 http://www.pornodungeon.com/pics/samp27.jpg 10.0.3.174/- foo GET
 http://www.sportnews.gr/_img/polo/image2223.jpg 10.0.2.130/- - GET
 http://www.sol.no/no/www.sol.no/graphics/partner/cnn_norge.gif 10.0.3.144/- - GET

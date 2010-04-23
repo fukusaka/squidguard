@@ -2,9 +2,9 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998 by
-  ElTele Øst AS, Oslo, Norway, with all rights reserved.
-  
+  This software product, squidGuard, is copyrighted (C) 1998-2007
+  by Christine Kronberg, Shalla Secure Services. All rights reserved.
+ 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
@@ -16,4 +16,4 @@
   (GPL) along with this program.
 */
 
-#define VERSION "1.2.0"
+#define VERSION "1.4"

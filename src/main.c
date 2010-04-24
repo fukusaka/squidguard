@@ -1,17 +1,17 @@
 /*
   By accepting this notice, you agree to be bound by the following
   agreements:
-  
+
   This software product, squidGuard, is copyrighted (C) 1998-2007
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
-  
+
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
   hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
   PURPOSE.  See the GNU General Public License (GPL) for more details.
-  
+
   You should have received a copy of the GNU General Public License
   (GPL) along with this program.
 */
@@ -68,16 +68,9 @@ int sgtime = 0;
 char *globalLogDir = NULL;
 
 
-#if __STDC__
 int main(int    argc,
          char   **argv,
 	 char   **envp)
-#else
-int main(argc, argv, envp)
-     int argc;
-     char *argv[];
-     char *envp[];
-#endif
 {
   int ch;
   struct SquidInfo squidInfo;
@@ -196,7 +189,7 @@ int main(argc, argv, envp)
 	  acl = sgAclCheckSource(src);
 	  if((redirect = sgAclAccess(src,acl,&squidInfo)) == NULL){
 	    if(src == NULL || src->cont_search == 0){
-	      puts(""); 
+	      puts("");
 	      break;
 	    } else
 	      if(src->next != NULL){
@@ -236,7 +229,7 @@ int main(argc, argv, envp)
       exit(2);
     }
 #endif
-#else 
+#else
     gettimeofday(&stop_time, NULL);
     stop_time.tv_sec = stop_time.tv_sec + globalDebugTimeDelta;
     sgLogError("squidGuard stopped (%d.%03d)",stop_time.tv_sec,stop_time.tv_usec/1000);
@@ -246,13 +239,9 @@ int main(argc, argv, envp)
   exit(0);
 }
 
-#if __STDC__
 void usage()
-#else
-void usage()
-#endif
 {
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "Usage: squidGuard [-u] [-C block] [-t time] [-c file] [-v] [-d] [-P]\n");
   fprintf(stderr, "Options:\n");
   fprintf(stderr, "  -v          : show version number\n");

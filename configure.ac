@@ -45,8 +45,7 @@ AC_ARG_WITH(squiduser,
 # Checks for programs.
 AC_PROG_AWK
 AC_PROG_CC
-AM_PROG_CC_STDC
-AM_C_PROTOTYPES
+AC_PROG_CC_STDC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_CPP
@@ -67,6 +66,7 @@ fi
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([unistd.h])
+AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([regex.h],,[
 	echo
 	echo "** No regex.h found"

@@ -23,11 +23,7 @@ extern int globalPid;      /* from main.c */
 extern char *globalLogDir; /* from main.c */
 extern struct LogFileStat *globalErrorLog;
 
-#if __STDC__
 void sgSetGlobalErrorLogFile()
-#else
-void sgSetGlobalErrorLogFile()
-#endif
 {
   static char file[MAX_BUF];
   if(globalDebug)
@@ -41,20 +37,13 @@ void sgSetGlobalErrorLogFile()
   globalErrorLog = sgLogFileStat(file);
 }
 
-#if __STDC__
 void sgLog(struct LogFileStat *log, char *format, ...)
-#else
-void sgLog(log, format, va_alist)
-     struct LogFileStat *log;
-     char *format;
-     va_dcl
-#endif
 {
   FILE *fd;
   char *date = NULL;
   char msg[MAX_BUF];
   va_list ap;
-  VA_START(ap, format);
+  va_start(ap, format);
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
     fprintf(stderr,"overflow in vsnprintf (sgLog): %s",strerror(errno));
   va_end(ap);
@@ -76,34 +65,22 @@ void sgLog(log, format, va_alist)
   }
 }
 
-#if __STDC__
 void sgLogError(char *format, ...)
-#else
-void sgLogError(format, va_alist)
-     char *format;
-     va_dcl
-#endif
 {
   char msg[MAX_BUF];
   va_list ap;
-  VA_START(ap, format);
+  va_start(ap, format);
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
     sgLog(globalErrorLog, "overflow in vsnprintf (sgLogError): %s",strerror(errno));
   va_end(ap);
   sgLog(globalErrorLog,"%s",msg);
 }
 
-#if __STDC__
 void sgLogFatalError(char *format, ...)
-#else
-void sgLogFatalError(format, va_alist)
-     char *format;
-     va_dcl
-#endif
 {
   char msg[MAX_BUF];
   va_list ap;
-  VA_START(ap, format);
+  va_start(ap, format);
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
     sgLog(globalErrorLog, "overflow in vsnprintf (sgLogError): %s",strerror(errno));
   va_end(ap);
@@ -112,22 +89,12 @@ void sgLogFatalError(format, va_alist)
 }
 
 
-#if __STDC__
 void sgLogRequest(struct LogFile *log,
 		  struct SquidInfo *req,
 		  struct Acl *acl, 
 		  struct AclDest *aclpass,
                  struct sgRewrite *rewrite,
                  int request)
-#else
-void sgLogRequest(log, req, acl, aclpass, rewrite, request)
-     struct LogFile *log;
-     struct SquidInfo *req;
-     struct Acl *acl;
-     struct AclDest *aclpass;
-     struct sgRewrite *rewrite;
-     int request;
-#endif
 {
   char *ident = req->ident;
   char *srcDomain = req->srcDomain;

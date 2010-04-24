@@ -18,15 +18,11 @@
 
 #include "sg.h"
 #include "sgEx.h"
+#include "HTEscape.h"
 
 /* #define METEST 8; */
 
-#if __STDC__
 void sgHandlerSigHUP(int signal)
-#else
-void sgHandlerSigHUP(signal)
-     int signal;
-#endif
 {
   sig_hup = 1;
 }
@@ -66,12 +62,7 @@ void sgReloadConfig()
   exit(1);
 }
 
-#if __STDC__
 void sgAlarm(int signal)
-#else
-void sgAlarm(signal)
-     int signal;
-#endif
 {
   sig_alrm = 1;
   sgTimeNextEvent();
@@ -82,13 +73,7 @@ void sgAlarm(signal)
   URL ip-address/fqdn ident method
 */
 
-#if __STDC__
 int parseLine(char *line, struct SquidInfo *s)
-#else
-int parseLine(line, s)
-     char *line;
-     struct SquidInfo *s;
-#endif
 {
   char *p, *d = NULL, *a = NULL, *e = NULL, *o, *field;
   int i = 0;
@@ -261,12 +246,7 @@ int parseLine(line, s)
   return 1;
 }
 
-#if __STDC__
 char *sgStripUrl (char *url)
-#else
-char *sgStripUrl (url)
-     char *url;
-#endif
 {
   static char newurl[MAX_BUF];
   char *p, *d = NULL, *a = NULL, *e = NULL;
@@ -299,12 +279,7 @@ char *sgStripUrl (url)
    so www.abc.xyz.dom/index.html -> xyz.dom/index.html
 */
 
-#if __STDC__
 char *sgSkipHostPart (char *domain)
-#else
-char *sgSkipHostPart (domain)
-     char *domain;
-#endif
 {
   char *p = domain , *d1 = NULL, *d2 = NULL, *path = NULL;
   if((path = (char *) strchr(p,'/')) == NULL) {
@@ -324,12 +299,7 @@ char *sgSkipHostPart (domain)
   return domain;
 }
 
-#if __STDC__
 void *sgMalloc(size_t elsize)
-#else
-void *sgMalloc(elsize)
-     size_t elsize;
-#endif
 {
   void *p;
   if((p=(void *) malloc(elsize)) == NULL){
@@ -339,13 +309,7 @@ void *sgMalloc(elsize)
   return (void *) p;
 }
 
-#if __STDC__
 void *sgCalloc(size_t nelem, size_t elsize)
-#else
-void *sgCalloc(nelem, elsize)
-     size_t nelem;
-     size_t elsize;
-#endif
 {
   void *p;
   if((p=(void *) calloc(nelem,elsize)) == NULL){
@@ -356,13 +320,7 @@ void *sgCalloc(nelem, elsize)
 }
 
 
-#if __STDC__
 void *sgRealloc(void *ptr, size_t elsize)
-#else
-void *sgRealloc(ptr, elsize)
-     void *ptr;
-     size_t elsize;
-#endif
 {
   void *p;
   if((p=(void *) realloc(ptr,elsize)) == NULL){
@@ -372,12 +330,7 @@ void *sgRealloc(ptr, elsize)
   return (void *) p;
 }
 
-#if __STDC__
 void sgFree(void *ptr)
-#else
-void sgFree(ptr)
-     void *ptr;
-#endif
 {
   free(ptr);
 }
@@ -389,14 +342,9 @@ checks the vality of an dotted address.
 
 */
 
-#if __STDC__
-ulong *sgConvDot (char *dot)
-#else
-ulong *sgConvDot (dot)
-     char *dot;
-#endif
+uint32_t *sgConvDot (char *dot)
 {
-  static unsigned long ipaddr = 0;
+  static uint32_t ipaddr = 0;
   int octet;
   char *s = dot,*t;
   int shift = 24;
@@ -428,13 +376,7 @@ ulong *sgConvDot (dot)
  Reverses cmp of strings
 */
 
-#if __STDC__
 int sgStrRcmp(char *a, char *b)
-#else
-int sgStrRcmp(a, b)
-     char *a;
-     char *b;
-#endif
 {
   char *a1 = (char *) strchr(a,'\0');
   char *b1 = (char *) strchr(b,'\0');
@@ -452,14 +394,7 @@ int sgStrRcmp(a, b)
   return *a1 - *b1;
 }
 
-#if __STDC__
 int sgStrRncmp(char *a, char *b, int blen)
-#else
-int sgStrRncmp(a, b, blen)
-     char *a;
-     char *b;
-     int blen;
-#endif
 {
   char *a1 = (char *) strchr(a,'\0');
   char *b1 = (char *) strchr(b,'\0');
@@ -486,13 +421,7 @@ int sgStrRncmp(a, b, blen)
  */
 
 
-#if __STDC__
 int sgDomStrRcmp(char *p1, char *p2)
-#else
-int sgDomStrRncmp(p1, p2)
-     char *p1;
-     char *p2;
-#endif
 {
   char *p11 = (char *) strchr(p1,'\0');
   char *p22 = (char *) strchr(p2,'\0');
@@ -512,13 +441,7 @@ int sgDomStrRncmp(p1, p2)
   
 */
 
-#if __STDC__
 struct sgRegExp *sgNewPatternBuffer(char *pattern, int flags)
-#else
-struct sgRegExp *sgNewPatternBuffer(pattern, flags)
-     char *pattern;
-     int flags;
-#endif
 {
   regex_t *compiled = (regex_t *) sgCalloc(1,sizeof(regex_t));
   struct sgRegExp *regexp;
@@ -537,25 +460,14 @@ struct sgRegExp *sgNewPatternBuffer(pattern, flags)
    Deletes the buffer memory, so save the next pointer first before
    calling this function.
 */
-#if __STDC__
 void sgFreePatternBuffer(struct sgRegExp *regexp)
-#else
-void sgFreePatternBuffer(regexp)
-     struct sgRegExp *regexp;
-#endif
 {
   sgFree(regexp->pattern);
   sgFree(regexp->compiled);
   sgFree(regexp);
 }
 
-#if __STDC__
 char *sgRegExpSubst(struct sgRegExp *regexp, char *pattern)
-#else
-char *sgRegExpSubst(regexp, pattern)
-     struct sgRegExp *regexp;
-     char *pattern;
-#endif
 {
   struct sgRegExp *re;
   regmatch_t pm[10];
@@ -650,18 +562,10 @@ char *sgRegExpSubst(regexp, pattern)
  */
 
 
-#if __STDC__
 char *sgParseRedirect(char *redirect,
 		      struct SquidInfo *req,
 		      struct Acl *acl, 
 		      struct AclDest *aclpass)
-#else
-char *sgParseRedirect(redirect, req, acl, aclpass)
-     char *redirect;
-     struct SquidInfo *req;
-     struct Acl *acl;
-     struct AclDest *aclpass;
-#endif
 {
   static char buf[MAX_BUF + MAX_BUF];
   char *p = redirect, *q = NULL, *t = NULL;
@@ -766,11 +670,7 @@ char *sgParseRedirect(redirect, req, acl, aclpass)
   return q;
 }
 
-#if __STDC__
 void sgEmergency ()
-#else
-void sgEmergency ()
-#endif
 {
   char buf[MAX_BUF];
   extern char *globalCreateDb;
@@ -798,12 +698,7 @@ void sgEmergency ()
 converts yyyy.mm.ddTHH:MM:SS to seconds since EPOC
  */
 
-#if __STDC__
 time_t iso2sec(char *date)
-#else
-time_t iso2sec(date)
-     char *date;
-#endif
 {
   struct tm *t;
   int y,m,d,H,M,S;
@@ -828,12 +723,7 @@ time_t iso2sec(date)
 converts yyyy.mm.dd to seconds since EPOC
  */
 
-#if __STDC__
 time_t date2sec(char *date)
-#else
-time_t date2sec(date)
-     char *date;
-#endif
 {
   struct tm *t;
   int y,m,d;
@@ -849,12 +739,7 @@ time_t date2sec(date)
   return (time_t) mktime(t);
 }
 
-#if __STDC__
 char *niso(time_t t)
-#else
-char *niso(t)
-     time_t t;
-#endif
 {
   static char buf[20];
   time_t tp;
@@ -869,11 +754,7 @@ char *niso(t)
   return buf;
 }
 
-#if __STDC__
 struct UserInfo *setuserinfo()
-#else
-struct UserInfo *setuserinfo()
-#endif
 {
   static struct UserInfo uq;
   uq.status = 0; 

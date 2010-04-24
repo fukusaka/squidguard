@@ -28,13 +28,7 @@ extern char **globalArgv;
 extern int globalQuiet;
 extern int showBar;     /* from main.c */
 
-#if __STDC__
 void sgDbInit(struct sgDb *Db, char *file)
-#else
-void sgDbInit(Db, file)
-     struct sgDb *Db;
-     char *file;
-#endif
 {
   struct stat st;
   char *dbfile = NULL;
@@ -127,14 +121,7 @@ void sgDbInit(Db, file)
     sgFree(dbfile);
 }
 
-#if __STDC__
 int defined(struct sgDb *Db, char *request, char **retval)
-#else
-int defined(Db, request, retval)
-     struct sgDb *Db;
-     char *request;
-     char **retval;
-#endif
 {
   int errno, result = 0 ;
   u_int32_t   dbmethod = DB_SET_RANGE;
@@ -232,11 +219,7 @@ int defined(Db, request, retval)
 
 static int stdoutisatty;
 
-#if __STDC__
 void startProgressBar()
-#else
-void startProgressBar()
-#endif
 {
   stdoutisatty = isatty(STDOUT_FILENO);
 
@@ -252,11 +235,7 @@ void startProgressBar()
   return;
 }
 
-#if __STDC__
 void finishProgressBar()
-#else
-void finishProgressBar()
-#endif
 {
   if(1 == stdoutisatty)
   {
@@ -270,12 +249,7 @@ void finishProgressBar()
   return;
 }
 
-#if __STDC__
 void updateProgressBar(float prog)
-#else
-void updateProgressBar(prog)
-	float prog;
-#endif
 {
   if(1 == stdoutisatty)
   {
@@ -301,14 +275,7 @@ void updateProgressBar(prog)
   return;
 }
 
-#if __STDC__
 void sgDbLoadTextFile(struct sgDb *Db, char *filename, int update)
-#else
-void sgDbLoadTextFile(Db, filename, update)
-     struct sgDb *Db;
-     char *filename;
-     int update;
-#endif
 {
   DB *dbp ;
   char *key,*val,*p,line[MAX_BUF];
@@ -424,15 +391,7 @@ void sgDbLoadTextFile(Db, filename, update)
 }
 
 
-#if __STDC__
 void sgDbUpdate(struct sgDb *Db, char *key, char *value, size_t len)
-#else
-void sgDbUpdate(Db, key, value, len)
-     struct sgDb *Db;
-     char *key;
-     char *value;
-     int len;
-#endif
 {
   DB *dbp ;
   u_int32_t flags = DB_NOOVERWRITE;
@@ -467,13 +426,7 @@ void sgDbUpdate(Db, key, value, len)
   }
 }
 
-#if __STDC__
 int db_init(char *dbhome, DB_ENV **dbenvp)
-#else
-int db_init(dbhome, dbenvp)
-     char *dbhome;
-     DB_ENV **dbenvp;
-#endif
 {
   int ret;
   DB_ENV *dbenv;
@@ -495,14 +448,7 @@ int db_init(dbhome, dbenvp)
   domainCompare does a reverse compare of two strings
 */
 
-#if __STDC__
 int domainCompare (const DB *dbp, const DBT *a, const DBT *b)
-#else
-int domainCompare (dbp, a, b)
-     DB  *dbp;
-     DBT *a;
-     DBT *b;
-#endif
 {
   register const char *a1 , *b1;
   register char ac1 , bc1;

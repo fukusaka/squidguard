@@ -1,3 +1,55 @@
+Release 1.5
+2010-09-09	Fixed inconsistent blocking (bug 59).  Replaced defined routine
+		in sgDB.c
+2010-09-08	Added Russian translation from Vladimir Ipatov to squidGuard.cgi.in.
+2009-10-19	Fixed two bypass problems with URLs which length is close to 
+		the limit defined by MAX_BUF. The resulting proxy line exceeds
+		this limit and causes either squid or squidGuard to properly
+		block a site.
+2009-10-15	Fixed a problem with very long URLs. SquidGuard will go into 
+		emergency mode when a overlong URLs are encountered. The
+		emergency mode causes an entire stop of blocking. This is not
+		appropriate in this situation.
+2009-09-30	Added patch by beber and gentoo (thank you!) to fix a 
+		problem when cross compiling (bug 56).
+2009-09-27	Added patch by gentoo to fix alocal warnings (bug 57).
+2009-09-15	Added a feature to send log messages to syslog based on the
+		patch from Jun Jiang (thank you). (bug 42)  In order to use
+		syslog you have to run configure with the new option
+		"--with-syslog". In the configuration file you need to add
+		a line "syslog enable". If any other value but "enable" is
+		used syslog is disabled and logging to squidGuard.log takes
+		place as usual.
+		The following log level are used: DEBUG, NOTICE, WARN, ERROR
+		and EMERG. The local4 syslog facility is used by default.
+		If you want to change this, use the configure option
+		"--with-syslog-facility=<facility>".
+2009-09-12	Anonymized passwords (for connecting to the ldap or mysql 
+		server) written to logfiles when squidGuard is starting.
+		Added two configure options for choosing different location
+		for the LDAP include and library files.
+2009-08-25	Added patch to check IP addresses against LDAP. Patch by
+		Denis Bonnenfant (bug 41) - thank you.
+2009-08-23	Added patch to allow quoted strings in the configuration
+		file (bug 53). For more information see README.QuotedStrings.
+		Thanks to Iain Fothergill for providing the patch.
+		Removed the fix for usernames starting with a number because
+		it breaks the time declarations.
+2009-05-08	Added patch by INL to enable blocking against DNS based
+		blacklists (bug 55).
+		Fixed re-opened bug 12: a problem with regular expressions.
+		An entry like "www\.google\.de" did not block www.google.de
+		which it was supposed to do. Solving this issue solved
+		bug 46 as well.
+2009-03-08	Fixed bug 52: Sometimes squidGuard crashes with an overflow
+		error message for vsprintf. Thanks to Dirk Schoebel for 
+		suggesting the proper fix.
+		Fixed bug 49: Using numeric username made squidGuard goes
+		into emergency mode. This has been fixed. Usernames can
+		now start with a number, be numeric and can additionally
+		contain the following characters: @,à,é,è,ñ,á,ì,í,ò,ó,ù,ú.
+
+
 Release 1.4
 2008-12-23	Included last fixes for 1.4 final.
 2008-07-23	Some cleanup and fine work: added information about "-b"

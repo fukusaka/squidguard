@@ -27,3 +27,6 @@
 
 /* Define if you have dbversion greater than 4.0  */
 #undef DB_VERSION_GT3
+
+/* Define if syslog shall be used for logging */
+#undef USE_SYSLOG

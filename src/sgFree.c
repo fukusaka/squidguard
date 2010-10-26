@@ -2,7 +2,7 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
 
-  This software product, squidGuard, is copyrighted (C) 1998-2007
+  This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
@@ -121,10 +121,15 @@ void sgFreeSource(src)
        /*struct Time *time;*/          /* not dynamically allocated */
 
 #ifdef HAVE_LIBLDAP
-       for(i = 0; i < src->ldapurlcount; i++) {
-               sgFree(src->ldapurls[i]);
+       if(src->ipDb != NULL)         sgFree(src->ipDb);
+       for(i = 0; i < src->ldapuserurlcount; i++) {
+          sgFree(src->ldapuserurls[i]);
        }
-       sgFree(src->ldapurls);
+       sgFree(src->ldapuserurls);
+          for(i = 0; i < src->ldapipurlcount; i++) {
+	     sgFree(src->ldapipurls[i]);
+	  }
+       sgFree(src->ldapipurls);
 #endif
 
        FREE_LIST(Ip, src->ip, sgFreeIp)

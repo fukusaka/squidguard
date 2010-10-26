@@ -6,7 +6,8 @@
 # French texts thanks to Fabrice Prigent (fabrice.prigent@univ-tlse1.fr)
 # Dutch texts thanks to Anneke Sicherer-Roetman (sicherer@sichemsoft.nl)
 # German texts thanks to Buergernetz Pfaffenhofen (http://www.bn-paf.de/filter/)
-# Spanish texts thanks to Samuel GarcÃ­a).
+# Spanish texts thanks to Samuel GarcÃ­a.
+# Russian texts thanks to Vladimir Ipatov.
 # Rewrite by Christine Kronberg, 2008, to enable an easier integration of
 # other languages.
 #
@@ -57,14 +58,15 @@ sub showinaddr($$$$$);
 #
 # CONFIGURABLE OPTIONS:
 #
-# (Currently: "en", "fr", "de", "es", "nl", "no")
+# (Currently: "en", "fr", "de", "es", "nl", "no", "ru")
 @supported   = (
 		"en (English), ",
-		"fr (Français), ",
+		"fr (Fran&#231;ais), ",
 		"de (Deutsch), ",
-		"es (Español), ",
+		"es (Espa&#241;ol), ",
 		"nl (Nederlands), ",
-		"no (Norsk)."
+		"no (Norsk), ",
+		"ru (Russian)."
 	       );
 #
 # Modifiy the values below to reflect you environment
@@ -142,7 +144,7 @@ sub parsequery($) {
 }
 
 #
-# PRINT HTTP STATUS HEARER:
+# PRINT HTTP STATUS HEADER:
 #
 sub status($) {
   my $status = shift;
@@ -150,7 +152,7 @@ sub status($) {
 }
 
 #
-# PRINT HTTP LOCATION HEARER:
+# PRINT HTTP LOCATION HEADER:
 #
 sub redirect($) {
   my $location = shift;

@@ -2,7 +2,7 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998-2007
+  This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
  
   This program is free software; you can redistribute it and/or modify it
@@ -16,4 +16,4 @@
   (GPL) along with this program.
 */
 
-#define VERSION "1.4"
+#define VERSION "1.5-alpha"

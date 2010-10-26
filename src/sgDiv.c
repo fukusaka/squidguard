@@ -2,7 +2,7 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998-2007
+  This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
  
   This program is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ void sgReloadConfig()
   struct Source *src;
   struct Destination *dest;
   sig_hup = 0;
-  sgLogError("got sigHUP reload config");
+  sgLogWarn("WARN: Received sigHUP, reloaded configuration");
   for(sg = LogFileStat; sg != NULL; sg = sg->next){ /* closing logfiles */
     if(sg->fd == stderr || sg->fd == stdout) {
       continue;
@@ -94,6 +94,7 @@ int parseLine(line, s)
   int i = 0;
   char c;
   int report_once = 1;
+  int trailingdot = 0;
   size_t strsz;
   int ndx = 0;
   
@@ -114,7 +115,7 @@ int parseLine(line, s)
   s->dot = 0;
   s->port = 0;
   p = strstr(field,"://");
-  /* sgLogError("Debug P2 = %s", p); */
+  /* sgLogDebug("DEBUG P2 = %s", p); */
   if(p == NULL) { /* no protocol, defaults to http */
     strcpy(s->protocol,"unknown");
     p = field;
@@ -132,7 +133,7 @@ int parseLine(line, s)
     {
         /* in case this is a '://' skip over it, but try to not read past EOS */
         if(3 <= strsz-ndx) {
-          if(':' == p[ndx] && '/' == p[ndx+1] && '/' == p[ndx+2]) {
+          if(':' == p[ndx] && '/' == p[ndx+1] && '/' == p[ndx+2] && '\0' != p[ndx+3]) {
            ndx+=3; /* 3 == strlen("://"); */
           }
         }
@@ -144,9 +145,19 @@ int parseLine(line, s)
          strncpy(p+ndx,p+ndx+1, sz);
          p[ndx+sz] = '\0';
           if(1 == report_once) {
-             sgLogError("Warning: Possible bypass attempt. Found multiple slashes where only one is expected: %s", s->orig); 
+             sgLogWarn("WARN: Possible bypass attempt. Found multiple slashes where only one is expected: %s", s->orig); 
             report_once--;
           }
+      }
+      else if ('.' == p[ndx] && '/' == p[ndx+1] && trailingdot == 0) {
+      /* If the domain has trailing dot, remove (problem found with squid 3.0 stable1-5) */
+      /* if this char is a dot and the next char is a slash, then shift the rest of the string left one char */
+      /* We do this only the first time it is encountered. */
+         trailingdot++;
+         size_t sz = strlen(p+ndx+1);
+         strncpy(p+ndx,p+ndx+1, sz);
+         p[ndx+sz] = '\0';
+          sgLogWarn("WARN: Possible bypass attempt. Found a trailing dot in the domain name: %s", s->orig); 
       }
       else
       {
@@ -160,7 +171,7 @@ int parseLine(line, s)
   i=0;
   d = strchr(p,'/'); /* find domain end */
   /* Check for the single URIs (d) */
-  /* sgLogError("URL: %s", d); */
+  /* sgLogDebug("DEBUG: URL: %s", d); */
   e = d;
   a = strchr(p,'@'); /* find auth  */
   if(a != NULL && ( a < d || d == NULL)) 
@@ -236,11 +247,11 @@ int parseLine(line, s)
     i++;
   }
   if(s->domain[0] == '\0') {
-/*    sgLogError("Debug: Domain is NULL: %s", s->orig); */
+/*    sgLogDebug("DEBUG: Domain is NULL: %s", s->orig); */
     return 0;
   }
   if(s->method[0] == '\0') {
-/*    sgLogError("Debug: Method is NULL: %s", s->orig); */
+/*    sgLogDebug("DEBUG: Method is NULL: %s", s->orig); */
     return 0;
   }
   return 1;
@@ -318,7 +329,7 @@ void *sgMalloc(elsize)
 {
   void *p;
   if((p=(void *) malloc(elsize)) == NULL){
-    sgLogFatalError("%s: %s",progname,strerror(ENOMEM));
+    sgLogFatal("FATAL: %s: %s",progname,strerror(ENOMEM));
     exit(1);
   }
   return (void *) p;
@@ -334,7 +345,7 @@ void *sgCalloc(nelem, elsize)
 {
   void *p;
   if((p=(void *) calloc(nelem,elsize)) == NULL){
-    sgLogFatalError("%s: %s",progname,strerror(ENOMEM));
+    sgLogFatal("FATAL: %s: %s",progname,strerror(ENOMEM));
     exit(1);
   }
   return (void *) p;
@@ -351,7 +362,7 @@ void *sgRealloc(ptr, elsize)
 {
   void *p;
   if((p=(void *) realloc(ptr,elsize)) == NULL){
-    sgLogFatalError("%s: %s",progname,strerror(ENOMEM));
+    sgLogFatal("FATAL: %s: %s",progname,strerror(ENOMEM));
     exit(1);
   }
   return (void *) p;
@@ -762,19 +773,19 @@ void sgEmergency ()
   extern int passthrough;     /* from main.c */
   if (globalCreateDb == NULL) {
      if (passthrough == 1) {
-        sgLogError("Warning: Not going into emergency mode because -P was used");
+        sgLogWarn("WARN: Not going into emergency mode because -P was used");
 	fprintf( stderr, "              ****************\n");
         fprintf( stderr, "FAILURE! Check your log file for problems with the database files!\n" );
 	fprintf( stderr, "              ****************\n");
-        exit(1);
+        exit(4);
      }
   }
-  sgLogError("Going into emergency mode");
+  sgLogError("ERROR: Going into emergency mode");
   while(fgets(buf, MAX_BUF, stdin) != NULL){
     puts("");
     fflush(stdout);
   }
-  sgLogError("ending emergency mode, stdin empty");
+  sgLogError("ERROR: Ending emergency mode, stdin empty");
   exit(-1);
 }
 
@@ -873,3 +884,21 @@ struct UserInfo *setuserinfo()
   return &uq;
 }
 
+#ifdef HAVE_LIBLDAP
+#if __STDC__
+struct IpInfo *setipinfo()
+#else
+struct IpInfo *setipinfo()
+#endif
+{
+  static struct IpInfo uq;
+  uq.status = 0; 
+  uq.time = 0; 
+  uq.consumed = 0; 
+  uq.last = 0; 
+  uq.ldapip = 0;
+  uq.found = 0;
+  uq.cachetime = 0;
+  return &uq;
+}
+#endif

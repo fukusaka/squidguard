@@ -94,12 +94,12 @@ void sgLogDebug(format, va_alist)
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
     sgLog(globalErrorLog, "FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
   va_end(ap);
-/* syslog not configured  if ( globalSyslog == 1) {
+@NOSYSLOG1@  if ( globalSyslog == 1) {
      syslog(LOG_DEBUG, "%s\n", msg);
   } 
-  else { */
+  else { @NOSYSLOG2@
      sgLog(globalErrorLog,"%s",msg);
-/* syslog not configured  } */
+@NOSYSLOG1@  } @NOSYSLOG2@
 }
 
 
@@ -117,12 +117,12 @@ void sgLogNotice(format, va_alist)
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
     sgLog(globalErrorLog, "FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
   va_end(ap);
-/* syslog not configured  if ( globalSyslog == 1) {
+@NOSYSLOG1@  if ( globalSyslog == 1) {
      syslog(LOG_NOTICE, "%s\n", msg);
   }
-  else { */
+  else { @NOSYSLOG2@
      sgLog(globalErrorLog,"%s",msg);
-/* syslog not configured  } */
+@NOSYSLOG1@  } @NOSYSLOG2@
 }
 
 #if __STDC__
@@ -139,12 +139,12 @@ void sgLogWarn(format, va_alist)
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
     sgLog(globalErrorLog,"FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
   va_end(ap);
-/* syslog not configured  if ( globalSyslog == 1) {
+@NOSYSLOG1@  if ( globalSyslog == 1) {
      syslog(LOG_WARNING, "%s\n", msg);
   }
-  else { */
+  else { @NOSYSLOG2@
      sgLog(globalErrorLog,"%s",msg);
-/* syslog not configured  } */
+@NOSYSLOG1@  } @NOSYSLOG2@
 }
 
 #if __STDC__
@@ -161,12 +161,12 @@ void sgLogError(format, va_alist)
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
     sgLog(globalErrorLog,"FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
   va_end(ap);
-/* syslog not configured  if ( globalSyslog == 1) {
+@NOSYSLOG1@  if ( globalSyslog == 1) {
      syslog(LOG_ERR, "%s\n", msg);
   }
-  else { */
+  else { @NOSYSLOG2@
      sgLog(globalErrorLog,"%s",msg);
-/* syslog not configured  } */
+@NOSYSLOG1@  } @NOSYSLOG2@
 }
 
 #if __STDC__
@@ -183,12 +183,12 @@ void sgLogFatal(format, va_alist)
   if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
     return;
   va_end(ap);
-/* syslog not configured  if ( globalSyslog == 1) {
+@NOSYSLOG1@  if ( globalSyslog == 1) {
      syslog(LOG_EMERG, "%s\n", msg);
   }
-  else { */
+  else { @NOSYSLOG2@
      sgLog(globalErrorLog,"%s",msg);
-/* syslog not configured  } */
+@NOSYSLOG1@  } @NOSYSLOG2@
   sgEmergency();
 }
 

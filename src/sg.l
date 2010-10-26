@@ -2,7 +2,7 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998-2008
+  This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
  
   This program is free software; you can redistribute it and/or modify it
@@ -74,23 +74,15 @@ weekdays (({weekday}{s}*[, \t]+{s}*)*{weekday})|[\*]
    <hexchar> ::= 0-9, a-f, A-F
 */
 
-ldaphexchar            [0-9a-fA-f]
-ldaphex                        {ldaphexchar}{ldaphexchar}
-ldapspecial            [,=+<>#;\r\n]
-ldapstringchar         [^,=+<>#;\r\n]
-ldappair               \\({ldapspecial}|\\|\")
-ldapstring             (({ldapstringchar}|{ldappair})*|\"({ldapstringchar}|{ldapspecial}|{ldappair})*\"|#{ldaphex})
-ldapkey                        [a-zA-Z0-9][a-zA-Z0-9 ]*
-ldapattribute          {ldapkey}{s}*={s}*{ldapstring}
-ldapnamecomponent      ({ldapattribute}{s}*+{s}*)*{ldapattribute}
-ldapspacedseparator    \ *[,;]\ *
-ldapdn                 ({ldapnamecomponent}{ldapspacedseparator})*{ldapnamecomponent}
 
 %x REDIRECT_STATE
 %x EXEC_STATE
-%x LDAPDN_STATE
+%x STRING_STATE
 
 %%
+
+       char string_buf[MAX_BUF];
+       char *string_buf_ptr;
 
 [ \t]*#.*        ;
 "{"         return START_BRACKET;
@@ -102,12 +94,13 @@ ldapdn                 ({ldapnamecomponent}{ldapspacedseparator})*{ldapnamecompo
 ^rew         return REWRITE;
 ^rewrite     return REWRITE;
 ^time        return TIME;
+^syslog      return SYSLOG;
 ^acl         return ACL;
 ^dbhome                return DBHOME;
 ^logdir                return LOGDIR;
 ^ldapcachetime return LDAPCACHETIME;
 ^ldapprotover  return LDAPPROTOVER;
-^ldapbinddn    { BEGIN LDAPDN_STATE; return LDAPBINDDN; }
+^ldapbinddn    return LDAPBINDDN;
 ^ldapbindpass  return LDAPBINDPASS;
 ^mysqlusername return MYSQLUSERNAME;
 ^mysqlpassword return MYSQLPASSWORD;
@@ -124,8 +117,13 @@ userquery   {
 	}
 ldapusersearch {
        /* use the REDIRECT_STATE logic, since it handles URLs nicely */
-       BEGIN REDIRECT_STATE;
+       /* BEGIN REDIRECT_STATE; */
        return LDAPUSERSEARCH;
+       }
+ldapipsearch {
+       /* use the REDIRECT_STATE logic, since it handles URLs nicely */
+       BEGIN REDIRECT_STATE;
+       return LDAPIPSEARCH;
        }
 execuserlist {
        BEGIN EXEC_STATE;
@@ -169,10 +167,36 @@ ip          return IP;
 <EXEC_STATE>[^\n]* { yylval.string = yytext; BEGIN 0; return EXECCMD; }
 <EXEC_STATE>\n     {lineno++;}
 
-<LDAPDN_STATE>{ldapdn}   {yylval.string = yytext; BEGIN 0; return LDAPDNSTR;}
-<LDAPDN_STATE>\n          {lineno++;}
+\"                 { string_buf_ptr = string_buf; BEGIN STRING_STATE; }
+<STRING_STATE>\"   { *string_buf_ptr = '\0'; yylval.string = string_buf; BEGIN 0; return QUOTED_STRING; }
+<STRING_STATE>\\x[0-9a-fA-F]{2} {
+                     if (string_buf_ptr-string_buf < sizeof(string_buf)-1)
+                     {
+                       int hexcode;
+                       sscanf( yytext + 2, "%x", &hexcode );
+                       *string_buf_ptr++ = (char) hexcode;
+                     }
+                   }
+<STRING_STATE>\\n  { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = '\n'; }
+<STRING_STATE>\\r  { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = '\r'; }
+<STRING_STATE>\\a  { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = '\a'; }
+<STRING_STATE>\\b  { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = '\b'; }
+<STRING_STATE>\\t  { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = '\t'; }
+<STRING_STATE>\n   { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = '\n'; }
+<STRING_STATE>\\\n { /* continuation line - ignore the \ and newline */; }
+<STRING_STATE>\\.  { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = yytext[1];  }
+<STRING_STATE>[^\\\n\"]+ {
+                     char *yyptr = yytext;
+                     while (*yyptr)
+                     {
+                       if (string_buf_ptr-string_buf >= sizeof(string_buf)-1)
+                         break;
+                       *string_buf_ptr++ = *yyptr++;
+                        }
+                   }
+<STRING_STATE>.    { if (string_buf_ptr-string_buf < sizeof(string_buf)-1) *string_buf_ptr++ = yytext[1];  }
 
-[a-zA-Z\/][a-zA-Z0-9/_\-\.\/\:\%\+\?=&]*  {yylval.string = yytext ; return WORD;}
+[a-zA-Z\/][a-zA-Z0-9/_\-\.\/\:\%\+\@\,\?=&\à\é\è\ñ\á\ì\í\ò\ó\ù\ú\*]*  {yylval.string = yytext ; return WORD;}
 s@(([^@}]|\\@|\\\})+)@(([^@}]|\\@|\\\})+)@[girR]* {yylval.string = yytext; return SUBST;}
 [ \t]+     ;
 \n        {lineno++;}

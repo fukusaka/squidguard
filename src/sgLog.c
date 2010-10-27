@@ -1,17 +1,17 @@
 /*
   By accepting this notice, you agree to be bound by the following
   agreements:
-  
+
   This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
- 
+
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
   hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
   PURPOSE.  See the GNU General Public License (GPL) for more details.
-  
+
   You should have received a copy of the GNU General Public License
   (GPL) along with this program.
 */
@@ -22,6 +22,10 @@ extern int globalDebug;    /* from main.c */
 extern int globalPid;      /* from main.c */
 extern char *globalLogDir; /* from main.c */
 extern struct LogFileStat *globalErrorLog;
+#ifdef USE_SYSLOG
+#include <syslog.h>
+#endif
+extern int globalSyslog;   /* from main.c */
 
 void sgSetGlobalErrorLogFile()
 {
@@ -44,8 +48,8 @@ void sgLog(struct LogFileStat *log, char *format, ...)
   char msg[MAX_BUF];
   va_list ap;
   va_start(ap, format);
-  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
-    fprintf(stderr,"overflow in vsnprintf (sgLog): %s",strerror(errno));
+  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
+    fprintf(stderr,"ERROR: overflow in vsnprintf (sgLog): %s",strerror(errno));
   va_end(ap);
   date = niso(0);
   if(globalDebug || log == NULL) {
@@ -65,33 +69,112 @@ void sgLog(struct LogFileStat *log, char *format, ...)
   }
 }
 
+void sgLogDebug(char *format, ...)
+{
+  char msg[MAX_BUF];
+  va_list ap;
+  va_start(ap, format);
+  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
+    sgLog(globalErrorLog, "FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
+  va_end(ap);
+#ifdef USE_SYSLOG
+  if ( globalSyslog == 1) {
+     syslog(LOG_DEBUG, "%s\n", msg);
+  }
+  else {
+#endif
+     sgLog(globalErrorLog,"%s",msg);
+#ifdef USE_SYSLOG
+  }
+#endif
+}
+
+
+void sgLogNotice(char *format, ...)
+{
+  char msg[MAX_BUF];
+  va_list ap;
+  va_start(ap, format);
+  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
+    sgLog(globalErrorLog, "FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
+  va_end(ap);
+#ifdef USE_SYSLOG
+  if ( globalSyslog == 1) {
+     syslog(LOG_NOTICE, "%s\n", msg);
+  }
+  else {
+#endif
+     sgLog(globalErrorLog,"%s",msg);
+#ifdef USE_SYSLOG
+  }
+#endif
+}
+
+void sgLogWarn(char *format, ...)
+{
+  char msg[MAX_BUF];
+  va_list ap;
+  va_start(ap, format);
+  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
+    sgLog(globalErrorLog,"FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
+  va_end(ap);
+#ifdef USE_SYSLOG
+  if ( globalSyslog == 1) {
+     syslog(LOG_WARNING, "%s\n", msg);
+  }
+  else {
+#endif
+     sgLog(globalErrorLog,"%s",msg);
+#ifdef USE_SYSLOG
+  }
+#endif
+}
+
 void sgLogError(char *format, ...)
 {
   char msg[MAX_BUF];
   va_list ap;
   va_start(ap, format);
-  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
-    sgLog(globalErrorLog, "overflow in vsnprintf (sgLogError): %s",strerror(errno));
+  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
+    sgLog(globalErrorLog,"FATAL: overflow in vsnprintf (sgLogError): %s",strerror(errno));
   va_end(ap);
-  sgLog(globalErrorLog,"%s",msg);
+#ifdef USE_SYSLOG
+  if ( globalSyslog == 1) {
+     syslog(LOG_ERR, "%s\n", msg);
+  }
+  else {
+#endif
+     sgLog(globalErrorLog,"%s",msg);
+#ifdef USE_SYSLOG
+  }
+#endif
 }
 
-void sgLogFatalError(char *format, ...)
+void sgLogFatal(char *format, ...)
 {
   char msg[MAX_BUF];
   va_list ap;
   va_start(ap, format);
-  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1)) 
-    sgLog(globalErrorLog, "overflow in vsnprintf (sgLogError): %s",strerror(errno));
+  if(vsnprintf(msg, MAX_BUF, format, ap) > (MAX_BUF - 1))
+    return;
   va_end(ap);
-  sgLog(globalErrorLog,"%s",msg);
+#ifdef USE_SYSLOG
+  if ( globalSyslog == 1) {
+     syslog(LOG_EMERG, "%s\n", msg);
+  }
+  else {
+#endif
+     sgLog(globalErrorLog,"%s",msg);
+#ifdef USE_SYSLOG
+  }
+#endif
   sgEmergency();
 }
 
 
 void sgLogRequest(struct LogFile *log,
 		  struct SquidInfo *req,
-		  struct Acl *acl, 
+		  struct Acl *acl,
 		  struct AclDest *aclpass,
                  struct sgRewrite *rewrite,
                  int request)
@@ -118,9 +201,9 @@ void sgLogRequest(struct LogFile *log,
     action = "-";
     break;
   }
-  if(rewrite == NULL) 
+  if(rewrite == NULL)
     rew = "-";
-  else 
+  else
     rew = rewrite->name;
   if(*ident == '\0' || log->anonymous == 1)
     ident = "-";

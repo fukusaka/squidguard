@@ -2,7 +2,7 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
   
-  This software product, squidGuard, is copyrighted (C) 1998-2008
+  This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
  
   This program is free software; you can redistribute it and/or modify it
@@ -20,6 +20,9 @@
 %{
 #include "sg.h"
 extern int globalDebug;
+#ifdef USE_SYSLOG
+extern int globalSyslog;
+#endif
 
 #ifdef HAVE_LIBLDAP
 #include "lber.h"
@@ -85,17 +88,20 @@ rfc1738_unescape(char *s)
   int  *integer;
 }
 
-%token WORD END START_BRACKET STOP_BRACKET WEEKDAY LDAPDNSTR
+%token WORD END START_BRACKET STOP_BRACKET WEEKDAY
 %token DESTINATION REWRITE ACL TIME TVAL DVAL DVALCRON
 %token SOURCE CIDR IPCLASS CONTINUE
 %token IPADDR DBHOME DOMAINLIST URLLIST EXPRESSIONLIST IPLIST
-%token DOMAIN USER USERLIST USERQUERY LDAPUSERSEARCH USERQUOTA IP NL NUMBER
+%token DOMAIN USER USERLIST USERQUERY LDAPUSERSEARCH USERQUOTA LDAPIPSEARCH IPQUOTA IP NL NUMBER
 %token PASS REDIRECT LOGDIR SUBST CHAR MINUTELY HOURLY DAILY WEEKLY DATE
-%token WITHIN OUTSIDE ELSE LOGFILE ANONYMOUS VERBOSE CONTINIOUS SPORADIC
+%token WITHIN OUTSIDE ELSE LOGFILE SYSLOG ANONYMOUS VERBOSE CONTINIOUS SPORADIC
 %token LDAPCACHETIME EXECUSERLIST EXECCMD LDAPPROTOVER
 %token LDAPBINDDN LDAPBINDPASS MYSQLUSERNAME MYSQLPASSWORD DATABASE
+%token QUOTED_STRING
 
-%type <string> WORD
+%type <string> WORD 
+%type <string> QUOTED_STRING
+%type <string> STRING
 %type <string> EXECCMD
 %type <string> WEEKDAY
 %type <string> LDAPDNSTR
@@ -121,31 +127,40 @@ rfc1738_unescape(char *s)
 start: statements
        ;
 
-dbhome:    DBHOME WORD { sgSetting("dbhome",$2); }
+STRING: WORD | QUOTED_STRING
+       ;
+
+LDAPDNSTR:  WORD | QUOTED_STRING
+       ;
+
+dbhome:    DBHOME STRING { sgSetting("dbhome",$2); }
          ;
 
-logdir:    LOGDIR WORD { sgSetting("logdir",$2); }
+sg_syslog: SYSLOG STRING { sgSetting("syslog",$2); }
+         ;
+
+logdir:    LOGDIR STRING { sgSetting("logdir",$2); }
          ;
 
 ldapcachetime: LDAPCACHETIME NUMBER { sgSetting("ldapcachetime",$2); }
          ;
 
-ldapprotover: LDAPPROTOVER NUMBER {sgSetting("ldapprotover",$2); }
+ldapprotover: LDAPPROTOVER NUMBER { sgSetting("ldapprotover",$2); }
        ;
 
 ldapbinddn: LDAPBINDDN LDAPDNSTR { sgSetting("ldapbinddn",$2); }
        ;
 
-ldapbindpass: LDAPBINDPASS WORD { sgSetting("ldapbindpass",$2); }
+ldapbindpass: LDAPBINDPASS STRING { sgSetting("ldapbindpass",$2); }
        ;
 
-mysqlusername: MYSQLUSERNAME WORD { sgSetting("mysqlusername",$2); }
+mysqlusername: MYSQLUSERNAME STRING { sgSetting("mysqlusername",$2); }
        ;
 
-mysqlpassword: MYSQLPASSWORD WORD { sgSetting("mysqlpassword",$2); }
+mysqlpassword: MYSQLPASSWORD STRING { sgSetting("mysqlpassword",$2); }
        ;
 
-mysqldb:       DATABASE WORD { sgSetting("mysqldb",$2); }
+mysqldb:       DATABASE STRING { sgSetting("mysqldb",$2); }
        ;
 
 start_block:
@@ -166,23 +181,23 @@ destination_block: destination start_block destination_contents stop_block
 destination_contents:
                   | destination_contents destination_content
 		  ;
-destination_content:
- 	    DOMAINLIST WORD { sgDestDomainList($2); }
+destination_content:  
+ 	    DOMAINLIST STRING { sgDestDomainList($2); }
             | DOMAINLIST '-' { sgDestDomainList(NULL); }
-            | URLLIST WORD { sgDestUrlList($2); }
+            | URLLIST STRING { sgDestUrlList($2); }
             | URLLIST '-'  { sgDestUrlList(NULL); }
             | EXPRESSIONLIST '-' { sgDestExpressionList(NULL,NULL); }
-            | EXPRESSIONLIST 'i' WORD { sgDestExpressionList($3,"i"); }
-            | EXPRESSIONLIST WORD  { sgDestExpressionList($2,"n"); }
-            | REDIRECT WORD  {sgDestRedirect($2); }
-            | REWRITE WORD  {sgDestRewrite($2); }
+            | EXPRESSIONLIST 'i' STRING { sgDestExpressionList($3,"i"); }
+            | EXPRESSIONLIST STRING { sgDestExpressionList($2,"n"); }
+            | REDIRECT STRING {sgDestRedirect($2); }
+            | REWRITE STRING {sgDestRewrite($2); }
             | WITHIN WORD { sgDestTime($2,WITHIN); }
             | OUTSIDE WORD { sgDestTime($2,OUTSIDE); }
-            | LOGFILE ANONYMOUS WORD { sgLogFile(SG_BLOCK_DESTINATION,1,0,$3); }
-            | LOGFILE VERBOSE WORD { sgLogFile(SG_BLOCK_DESTINATION,0,1,$3); }
-            | LOGFILE ANONYMOUS VERBOSE WORD { sgLogFile(SG_BLOCK_DESTINATION,1,1,$4); }
-            | LOGFILE VERBOSE ANONYMOUS WORD { sgLogFile(SG_BLOCK_DESTINATION,1,1,$4); }
-            | LOGFILE WORD { sgLogFile(SG_BLOCK_DESTINATION,0,0,$2); }
+            | LOGFILE ANONYMOUS STRING { sgLogFile(SG_BLOCK_DESTINATION,1,0,$3); }
+            | LOGFILE VERBOSE STRING { sgLogFile(SG_BLOCK_DESTINATION,0,1,$3); }
+            | LOGFILE ANONYMOUS VERBOSE STRING { sgLogFile(SG_BLOCK_DESTINATION,1,1,$4); }
+            | LOGFILE VERBOSE ANONYMOUS STRING { sgLogFile(SG_BLOCK_DESTINATION,1,1,$4); }
+            | LOGFILE STRING { sgLogFile(SG_BLOCK_DESTINATION,0,0,$2); }
             ;
 
 source:      SOURCE WORD { sgSource($2); }
@@ -196,33 +211,34 @@ source_contents:
 		    ;
 
 source_content:     DOMAIN domain
-                    | USER user
-                    | USERLIST WORD { sgSourceUserList($2); }
+                    | USER user 
+                    | USERLIST STRING { sgSourceUserList($2); } 
 /*MYSQL*/           | USERQUERY WORD WORD WORD WORD { sgSourceUserQuery($2,$3,$4,$5); }
-/*LDAP*/            | LDAPUSERSEARCH WORD { sgSourceLdapUserSearch($2); }
+/*LDAP*/            | LDAPUSERSEARCH STRING { sgSourceLdapUserSearch($2); }
+                    | LDAPIPSEARCH WORD { sgSourceLdapIpSearch($2); }
                     | EXECUSERLIST EXECCMD { sgSourceExecUserList($2); }
                     | USERQUOTA NUMBER NUMBER HOURLY { sgSourceUserQuota($2,$3,"3600");}
                     | USERQUOTA NUMBER NUMBER DAILY { sgSourceUserQuota($2,$3,"86400");}
                     | USERQUOTA NUMBER NUMBER WEEKLY { sgSourceUserQuota($2,$3,"604800");}
                     | USERQUOTA NUMBER NUMBER NUMBER { sgSourceUserQuota($2,$3,$4);}
                     | IP ips
-                    | IPLIST WORD { sgSourceIpList($2); }
+                    | IPLIST STRING { sgSourceIpList($2); }
                     | WITHIN WORD { sgSourceTime($2,WITHIN); }
                     | OUTSIDE WORD { sgSourceTime($2,OUTSIDE); }
-                    | LOGFILE ANONYMOUS WORD {sgLogFile(SG_BLOCK_SOURCE,1,0,$3);}
-                    | LOGFILE VERBOSE WORD {sgLogFile(SG_BLOCK_SOURCE,0,1,$3);}
-                    | LOGFILE ANONYMOUS VERBOSE WORD {sgLogFile(SG_BLOCK_SOURCE,1,1,$4);}
-                    | LOGFILE VERBOSE ANONYMOUS WORD {sgLogFile(SG_BLOCK_SOURCE,1,1,$4);}
-                    | LOGFILE WORD { sgLogFile(SG_BLOCK_SOURCE,0,0,$2); }
+                    | LOGFILE ANONYMOUS STRING {sgLogFile(SG_BLOCK_SOURCE,1,0,$3);}
+                    | LOGFILE VERBOSE STRING {sgLogFile(SG_BLOCK_SOURCE,0,1,$3);}
+                    | LOGFILE ANONYMOUS VERBOSE STRING {sgLogFile(SG_BLOCK_SOURCE,1,1,$4);}
+                    | LOGFILE VERBOSE ANONYMOUS STRING {sgLogFile(SG_BLOCK_SOURCE,1,1,$4);}
+                    | LOGFILE STRING { sgLogFile(SG_BLOCK_SOURCE,0,0,$2); }
                     | CONTINUE { lastSource->cont_search = 1; }
                     ;
-domain:
-		    | domain WORD { sgSourceDomain($2); }
+domain:		    
+		    | domain STRING { sgSourceDomain($2); }
                     | domain ','
 		    ;
 
-user:
-		    | user WORD { sgSourceUser($2); }
+user:		    
+		    | user STRING { sgSourceUser($2); }
                     | user ','
 		    ;
 
@@ -250,12 +266,12 @@ access_contents:
 
 access_content:    PASS access_pass { }
                   | REWRITE WORD { sgAclSetValue("rewrite",$2,0); }
-                  | REDIRECT WORD { sgAclSetValue("redirect",$2,0); }
-                  | LOGFILE ANONYMOUS WORD {sgLogFile(SG_BLOCK_ACL,1,0,$3);}
-                  | LOGFILE VERBOSE WORD {sgLogFile(SG_BLOCK_ACL,0,1,$3);}
-                  | LOGFILE ANONYMOUS VERBOSE WORD {sgLogFile(SG_BLOCK_ACL,1,1,$4);}
-                  | LOGFILE VERBOSE ANONYMOUS WORD {sgLogFile(SG_BLOCK_ACL,1,1,$4);}
-                  | LOGFILE WORD { sgLogFile(SG_BLOCK_ACL,0,0,$2); }
+                  | REDIRECT STRING { sgAclSetValue("redirect",$2,0); }
+                  | LOGFILE ANONYMOUS STRING {sgLogFile(SG_BLOCK_ACL,1,0,$3);}
+                  | LOGFILE VERBOSE STRING {sgLogFile(SG_BLOCK_ACL,0,1,$3);}
+                  | LOGFILE ANONYMOUS VERBOSE STRING {sgLogFile(SG_BLOCK_ACL,1,1,$4);}
+                  | LOGFILE VERBOSE ANONYMOUS STRING {sgLogFile(SG_BLOCK_ACL,1,1,$4);}
+                  | LOGFILE STRING { sgLogFile(SG_BLOCK_ACL,0,0,$2); }
                   ;
 
 access_pass:
@@ -294,11 +310,11 @@ rew_contents:
 rew_content:    SUBST  { sgRewriteSubstitute($1); }
                 | WITHIN WORD { sgRewriteTime($2,WITHIN); }
                 | OUTSIDE WORD { sgRewriteTime($2,OUTSIDE); }
-                | LOGFILE ANONYMOUS WORD { sgLogFile(SG_BLOCK_REWRITE,1,0,$3); }
-                | LOGFILE VERBOSE WORD { sgLogFile(SG_BLOCK_REWRITE,0,1,$3); }
-                | LOGFILE ANONYMOUS VERBOSE WORD { sgLogFile(SG_BLOCK_REWRITE,1,1,$4); }
-                | LOGFILE VERBOSE ANONYMOUS WORD { sgLogFile(SG_BLOCK_REWRITE,1,1,$4); }
-                | LOGFILE WORD { sgLogFile(SG_BLOCK_REWRITE,0,0,$2); }
+                | LOGFILE ANONYMOUS STRING { sgLogFile(SG_BLOCK_REWRITE,1,0,$3); }
+                | LOGFILE VERBOSE STRING { sgLogFile(SG_BLOCK_REWRITE,0,1,$3); }
+                | LOGFILE ANONYMOUS VERBOSE STRING { sgLogFile(SG_BLOCK_REWRITE,1,1,$4); }
+                | LOGFILE VERBOSE ANONYMOUS STRING { sgLogFile(SG_BLOCK_REWRITE,1,1,$4); }
+                | LOGFILE STRING { sgLogFile(SG_BLOCK_REWRITE,0,0,$2); }
                 ;
 
 
@@ -352,9 +368,10 @@ statement:
 	     | destination_block
              | dbhome
 	     | logdir
-            | ldapprotover
-            | ldapbinddn
-            | ldapbindpass
+	     | sg_syslog
+             | ldapprotover
+             | ldapbinddn
+             | ldapbindpass
              | ldapcachetime
 	     | mysqlusername
 	     | mysqlpassword
@@ -375,11 +392,11 @@ void sgReadConfig (char *file)
   if(configFile == NULL)
     configFile = defaultFile;
   yyin = fopen(configFile,"r");
-  if(yyin == NULL)
-    sgLogFatalError("%s: can't open configfile  %s",progname, configFile);
+  if(yyin == NULL) 
+    sgLogFatal("%s: FATAL: can't open configfile  %s",progname, configFile);
   (void)yyparse();
   if(defaultAcl == NULL)
-    sgLogFatalError("%s: default acl not defined in configfile  %s",
+    sgLogFatal("%s: FATAL: default acl not defined in configfile  %s",
 	progname, configFile);
   fclose(yyin);
 }
@@ -497,7 +514,7 @@ void sgSource(char *source)
   struct Source *sp;
   if(Source != NULL){
     if((struct Source *) sgSourceFindName(source) != NULL)
-      sgLogFatalError("%s: source %s is defined in configfile %s",
+      sgLogFatal("%s: source %s is defined in configfile %s",
 		      progname,source, configFile);
   }
   sp = (struct Source *)sgCalloc(1,sizeof(struct Source));
@@ -511,6 +528,12 @@ void sgSource(char *source)
   sp->userquota.seconds = 0;
   sp->userquota.renew = 0;
   sp->userquota.sporadic = 0;
+#ifdef HAVE_LIBLDAP
+  sp->ipDb = NULL;
+  sp->ipquota.seconds = 0;
+  sp->ipquota.renew = 0;
+  sp->ipquota.sporadic = 0;
+#endif
   sp->next=NULL;
   sp->logfile = NULL;
   sp->name = (char  *) sgCalloc(1,strlen(source) + 1);
@@ -531,7 +554,8 @@ void sgSourceEnd()
  struct Source *s;
  s = lastSource;
  if(s->ip == NULL && s->domainDb == NULL && s->userDb == NULL
-       && s->ldapurlcount == 0){
+       && s->ipDb == NULL
+       && s->ldapuserurlcount == 0 && s->ldapipurlcount == 0 ){
    sgLogError("sourceblock %s missing active content, set inactive",s->name);
    s->time = NULL;
    s->active = 0;
@@ -686,7 +710,9 @@ void sgSourceUserQuery(char *query,char *a,char *b,char *c)
     strncpy(line, row[0], sizeof(line)-1);
     l++;
     sgDbUpdate(sp->userDb, line, (char *) setuserinfo(), sizeof(struct UserInfo));
+#ifndef SUPPRESS_LOGGING
     sgLogError("Added MySQL source: %s", line);
+#endif
   }
   mysql_free_result(res);
   mysql_close(conn);
@@ -718,11 +744,11 @@ void sgSourceLdapUserSearch(char *url)
   }
 
   /* looks ok, add the url to the source object url array */
-  sp->ldapurls = (char**) sgRealloc(sp->ldapurls,
-                                    sizeof(char*) * (sp->ldapurlcount+1));
-  sp->ldapurls[sp->ldapurlcount] = (char*) sgMalloc(strlen(url) + 1);
-  strcpy(sp->ldapurls[sp->ldapurlcount], url);
-  sp->ldapurlcount++;
+  sp->ldapuserurls = (char**) sgRealloc(sp->ldapuserurls,
+                              sizeof(char*) * (sp->ldapuserurlcount+1));
+  sp->ldapuserurls[sp->ldapuserurlcount] = (char*) sgMalloc(strlen(url) + 1);
+  strcpy(sp->ldapuserurls[sp->ldapuserurlcount], url);
+  sp->ldapuserurlcount++;
 
   /* create a userDb if it doesn't exist, since we'll need it later
    * for caching */
@@ -732,8 +758,43 @@ void sgSourceLdapUserSearch(char *url)
     sgDbInit(sp->userDb,NULL);
   }
 }
+
+void sgSourceLdapIpSearch(char *url)
+{
+  struct Source *sp;
+  sp = lastSource;
+
+#ifndef SUPPRESS_LOGGING
+  sgLogError("DEBUG: sgSourceLdapIpSearch called with: %s", url);
+#endif
+
+  if(!ldap_is_ldap_url(url)) {
+    sgLogError("%s: can't parse LDAP url %s",progname, url);
+    return;
+  }
+
+  /* looks ok, add the url to the source object url array */
+  sp->ldapipurls = (char**) sgRealloc(sp->ldapipurls,
+                                    sizeof(char*) * (sp->ldapipurlcount+1));
+  sp->ldapipurls[sp->ldapipurlcount] = (char*) sgMalloc(strlen(url) + 1);
+  strcpy(sp->ldapipurls[sp->ldapipurlcount], url);
+  sp->ldapipurlcount++;
+
+  /* create a ipDb if it doesn't exist, since we'll need it later
+   * for caching */
+  if(sp->ipDb == NULL){
+    sp->ipDb = (struct sgDb *) sgCalloc(1,sizeof(struct sgDb));
+    sp->ipDb->type=SGDBTYPE_USERLIST;
+    sgDbInit(sp->ipDb,NULL);
+  }
+}
 #else /* !LDAP Support */
 void sgSourceLdapUserSearch(char *url)
+{
+    sgLogError("%s: not built with LDAP support",progname);
+}
+
+void sgSourceLdapIpSearch(char *url)
 {
     sgLogError("%s: not built with LDAP support",progname);
 }
@@ -776,8 +837,9 @@ void sgSourceExecUserList(char *cmd)
     if(lc >= sc) {
       sgDbUpdate(sp->userDb, sc, (char *) setuserinfo(),
                  sizeof(struct UserInfo));
-// DEBUG
+#ifndef SUPPRESS_LOGGING
       sgLogError("Added exec source: %s", sc);
+#endif
     }
   }
 
@@ -826,7 +888,7 @@ void sgSourceTime(char *name, int within)
   struct Source *sp;
   sp = lastSource;
   if((time = sgTimeFindName(name)) == NULL){
-    sgLogFatalError("%s: Time %s is not defined in configfile %s",
+    sgLogFatal("%s: FATAL: Time %s is not defined in configfile %s",
 		    progname,name, configFile);
   }
   sp->within = within;
@@ -918,12 +980,22 @@ void sgSourceIpList(char *file)
 struct Source *sgFindSource (struct Source *bsrc,
 			     char *net, char *ident, char *domain)
 {
+/* DEBUG
+  sgLogError("DEBUG: sgfindsource  called with: %s", net);
+*/
   struct Source *s;
   struct Ip *ip;
   int foundip, founduser, founddomain, unblockeduser;
   uint32_t i, octet = 0, *op;
   struct UserInfo *userquota;
+  char *dotnet;
+#ifdef HAVE_LIBLDAP
+  int unblockedip;
+  struct IpInfo *ipquota;
+#endif
   if(net != NULL){
+    dotnet = (char*) sgMalloc(strlen(net) + 1);
+    strcpy(dotnet, net);
     op = sgConvDot(net);
     if(op != NULL)
       octet = *op;
@@ -955,8 +1027,65 @@ struct Source *sgFindSource (struct Source *bsrc,
 	}
       }
     } else
+#ifdef HAVE_LIBLDAP 
+// debut ip
+      if( s->ipDb != NULL){
+      if(dotnet == NULL)
+       foundip = 0;
+      else {
+//        rfc1738_unescape(dotnet);
+        if(sgFindIp(s, dotnet, &ipquota)) {
+         foundip = 1;
+         unblockedip = 1;
+         if(s->ipquota.seconds != 0){
+            struct IpInfo uq;
+           time_t t = time(NULL) + globalDebugTimeDelta;
+           sgLogError("status %d time %d lasttime %d consumed %d", ipquota->status, ipquota->time, ipquota->last, ipquota->consumed);
+           sgLogError("renew %d seconds %d", s->ipquota.renew, s->ipquota.seconds);
+           if(ipquota->status == 0){ //first time
+             ipquota->status = 1;
+             ipquota->time = t;
+             ipquota->last = t;
+             sgLogError("ip %s first time %d", dotnet, ipquota->time);
+           } else if(ipquota->status == 1){
+             sgLogError("ip %s other time %d %d",dotnet,ipquota->time,t);
+             if(s->ipquota.sporadic > 0){
+               if(t - ipquota->last  < s->ipquota.sporadic){
+                 ipquota->consumed += t - ipquota->last;
+                 ipquota->time = t;
+               }
+               if(ipquota->consumed > s->ipquota.seconds){
+                 ipquota->status = 2; // block this ip, time is up
+                 unblockedip = 0;
+               }
+               ipquota->last = t;
+               sgLogError("ip %s consumed %d %d",dotnet,ipquota->consumed, ipquota->last);
+             } else if(ipquota->time + s->ipquota.seconds < t){
+               sgLogError("time is up ip %s blocket", net);
+               ipquota->status = 2; // block this ip, time is up
+               unblockedip = 0;
+             } 
+           } else {
+             sgLogError("ip %s blocket %d %d %d %d", dotnet, ipquota->status, ipquota->time, t, (ipquota->time + s->ipquota.renew) - t);
+             if(ipquota->time + s->ipquota.renew < t){ // new chance
+               sgLogError("ip %s new chance", net);
+               unblockedip = 1;
+               ipquota->status = 1;
+               ipquota->time = t;
+               ipquota->consumed = 0;
+             } else 
+               unblockedip = 0;
+           }
+           sgDbUpdate(s->ipDb, dotnet, (void *) ipquota, 
+                      sizeof(struct IpInfo));
+         }
+       }
+      }
+    } else
+#endif
+//fin ip
       foundip = 1;
-    if(s->userDb != NULL){
+      if(s->userDb != NULL){
       if(*ident == '\0')
 	founduser = 0;
       else {
@@ -1044,7 +1173,7 @@ void sgDest(char *dest)
   struct Destination *sp;
   if(Dest != NULL){
     if((struct Destination *) sgDestFindName(dest) != NULL)
-      sgLogFatalError("%s: destination %s is defined in configfile %s",
+      sgLogFatal("%s: destination %s is defined in configfile %s",
 		   progname,dest, configFile);
   }
   sp = (struct Destination *) sgCalloc(1,sizeof(struct Destination));
@@ -1199,8 +1328,8 @@ void sgDestExpressionList(char *exprlist, char *chcase)
           flags |= REG_ICASE; /* set case insensitive */
   }
   sgLogError("init expressionlist %s",sp->expressionlist);
-  if ((fp = fopen(sp->expressionlist, "r")) == NULL)
-    sgLogFatalError("%s: %s", sp->expressionlist, strerror(errno));
+  if ((fp = fopen(sp->expressionlist, "r")) == NULL) 
+    sgLogFatal("%s: %s", sp->expressionlist, strerror(errno));
   while(fgets(buf, sizeof(buf), fp) != NULL){
     p = (char *) strchr(buf,'\n');
     if(p != NULL && p != buf){
@@ -1237,7 +1366,7 @@ void sgDestRewrite(char *value){
   struct Destination *sp;
   sp = lastDest;
   if((rewrite = sgRewriteFindName(value)) == NULL){
-    sgLogFatalError("%s: Rewrite %s is not defined in configfile %s",
+    sgLogFatal("%s: FATAL: Rewrite %s is not defined in configfile %s",
 		    progname,value, configFile);
   }
   sp->rewrite = rewrite;
@@ -1266,7 +1395,7 @@ void sgDestTime(char *name, int within)
   struct Destination *sp;
   sp = lastDest;
   if((time = sgTimeFindName(name)) == NULL){
-    sgLogFatalError("%s: Time %s is not defined in configfile %s",
+    sgLogFatal("%s: FATAL: Time %s is not defined in configfile %s",
 		    progname,name, configFile);
   }
   sp->within = within;
@@ -1293,8 +1422,7 @@ void sgSetting(char *name, char *value)
   struct Setting *sp;
   if(Setting != NULL){
     if((struct Setting *) sgSettingFindName(name) != NULL)
-      sgLogFatalError("%s: setting %s is defined in configfile %s",
-		      progname,name, configFile);
+      sgLogFatal("FATAL: %s: setting %s is defined in configfile %s", progname,name, configFile);
   }
   sp = (struct Setting *) sgCalloc(1,sizeof(struct Setting));
 
@@ -1302,8 +1430,12 @@ void sgSetting(char *name, char *value)
   sp->value = strdup(value);
 
 // DEBUG
-  sgLogError("New setting: %s: %s", name, value);
-
+  if(strcmp(name,"ldapbindpass") == 0 || strcmp(name,"mysqlpassword") == 0) {
+     sgLogNotice("INFO: New setting: %s: ***************", name);
+  }
+  else { 
+     sgLogNotice("INFO: New setting: %s: %s", name, value);
+  }
 
   if(Setting == NULL){
     Setting = sp;
@@ -1315,7 +1447,32 @@ void sgSetting(char *name, char *value)
   if(!strcmp(name,"logdir")){
     globalLogDir= strdup(value);
   }
+#ifdef USE_SYSLOG
+  if(!strcmp(name,"syslog")){
+    sgSyslogSetting(value);
+  }
+#endif
 }
+
+#ifdef USE_SYSLOG
+void sgSyslogSetting (char *value)
+{
+    if (strcmp(value,"enable") == 0){
+        //printf(">> enable syslog option\n");
+        globalSyslog = 1;
+    }
+    else if (strcmp(value,"disable") == 0){
+        //printf(">> disable syslog option \n");
+        globalSyslog = 0;
+    }
+    else {
+        printf("ERROR: Invalid syslog option in %s line %d. Syslog will not be used. See logfile for informations. \n", configFile, lineno);
+	globalSyslog = 0;
+        sgLogError("ERROR: Invalid syslog option in %s line %d. Syslog will not be used. See logfile for informations. \n", configFile, lineno);
+    }
+}
+#endif
+
 
 struct Setting *sgSettingFindName(char *name)
 {
@@ -1349,7 +1506,7 @@ void sgRewrite(char *rewrite)
   struct sgRewrite *rew;
   if(Rewrite != NULL){
     if((struct sgRewrite *) sgRewriteFindName(rewrite) != NULL)
-      sgLogFatalError("%s: rewrite %s is defined in configfile %s",
+      sgLogFatal("%s: rewrite %s is defined in configfile %s",
 		      progname,rewrite, configFile);
   }
   rew = (struct sgRewrite *) sgCalloc(1,sizeof(struct sgRewrite));
@@ -1376,7 +1533,7 @@ void sgRewriteTime(char *name, int within)
   struct sgRewrite *sp;
   sp = lastRewrite;
   if((time = sgTimeFindName(name)) == NULL){
-    sgLogFatalError("%s: Time %s is not defined in configfile %s",
+    sgLogFatal("%s: FATAL: Time %s is not defined in configfile %s",
 		    progname,name, configFile);
   }
   sp->within = within;
@@ -1458,7 +1615,7 @@ void sgTime(char *name)
   struct Time *t;
   if(Time != NULL){
     if((struct Time *) sgTimeFindName(name) != NULL)
-      sgLogFatalError("%s: time %s is defined in configfile %s",
+      sgLogFatal("%s: time %s is defined in configfile %s",
 		      progname,name, configFile);
   } else
     numTimeElements = 0;
@@ -1539,7 +1696,7 @@ void sgTimeElementAdd (char *element, char type)
   case T_TVAL:
     sscanf(element,"%d:%d",&h,&m);
     if((h < 0 && h > 24) && (m < 0 && m > 59))
-      sgLogFatalError("%s: time formaterror in %s line %d",
+      sgLogFatal("%s: FATAL: time formaterror in %s line %d",
 		      progname, configFile,lineno);
     if(time_switch == 0){
       time_switch++;
@@ -1552,7 +1709,7 @@ void sgTimeElementAdd (char *element, char type)
   case T_DVAL:
     sec = date2sec(element);
     if(sec == -1){
-      sgLogFatalError("%s: date formaterror in %s line %d",
+      sgLogFatal("%s: FATAL: date formaterror in %s line %d",
 		      progname, configFile,lineno);
     }
     if(date_switch == 0){
@@ -1617,7 +1774,7 @@ void sgTimeElementAdd (char *element, char type)
 	wday = wday | 0x40;
 	break;
       default:
-	sgLogFatalError("%s: weekday formaterror in %s line %d",
+	sgLogFatal("%s: FATAL: weekday formaterror in %s line %d",
 			progname, configFile,lineno);
 	break;
       }
@@ -1719,7 +1876,7 @@ int sgTimeNextEvent()
   if(m <= 0)
     m = 30;
 #ifndef SUPPRESS_LOGGING
-  sgLogError("Info: recalculating alarm in %d seconds", (unsigned int)m);
+  sgLogDebug("INFO: recalculating alarm in %d seconds", (unsigned int)m);
 #endif
   alarm((unsigned int) m);
   sgTimeCheck(lt,t);
@@ -1839,7 +1996,7 @@ void sgTimeSetAcl()
 void sgTimeElementClone() {
   struct TimeElement *te = lastTimeElement, *tmp;
   if ( lastTimeElement == NULL ) {
-    sgLogFatalError("No prev TimeElement in sgTimeElementClone !");
+    sgLogFatal("FATAL: No prev TimeElement in sgTimeElementClone !");
   } else {
     sgTimeElementInit();
     lastTimeElement->wday = te->wday;
@@ -1893,19 +2050,19 @@ void sgSetIpType(int type, char *file, int line)
     ip->mask = 0xffffffff;
   if(type == SG_IPTYPE_RANGE){
     if((op=sgConvDot(ip->str)) == NULL)
-      sgLogFatalError("%s: address error in %s line %d", progname, f,l);
-    else
+      sgLogFatal("%s: FATAL: address error in %s line %d", progname, f,l);
+    else 
       ip->mask = *op;
     if(ip->net > ip->mask)
-      sgLogFatalError("%s: iprange error in %s line %d", progname, f,l);
+      sgLogFatal("%s: FATAL: iprange error in %s line %d", progname, f,l);
   }
   if(type == SG_IPTYPE_CLASS){
     p=ip->str;
     if(*p == '/')
       p++;
     if((op=sgConvDot(p)) == NULL)
-      sgLogFatalError("%s: address error in %s line %d", progname, f,l);
-    else
+      sgLogFatal("%s: FATAL: address error in %s line %d", progname, f,l);
+    else 
       ip->mask = *op;
   }
   if(type == SG_IPTYPE_CIDR){
@@ -1914,8 +2071,7 @@ void sgSetIpType(int type, char *file, int line)
       p++;
     octet = atoi(p);
     if(octet < 0 || octet > 32){
-      sgLogFatalError("%s: prefix error /%s in %s line %d",
-		      progname,p, f,l);
+      sgLogFatal("%s: FATAL: prefix error /%s in %s line %d", progname,p, f,l);
     }
     if(octet == 32)
       ip->mask = 0xffffffff;
@@ -1943,8 +2099,8 @@ void sgIp(char *name)
   if(ip->net_is_set == 0){
     ip->net_is_set = 1;
     if((op=sgConvDot(name)) == NULL){
-      sgLogFatalError("%s: address error in %s line %d", progname, configFile,lineno);
-    } else
+      sgLogFatal("%s: FATAL: address error in %s line %d", progname, configFile,lineno);
+    } else 
       ip->net = *op;
   } else {
     ip->str = (char *) sgCalloc(1,strlen(name) + 1);
@@ -1981,8 +2137,7 @@ void sgAcl(char *name, char *value, int within)
     /*
     if(Acl != NULL){
       if((struct Acl *) sgAclFindName(name) != NULL){
-	sgLogFatalError("%s: ACL %s is defined in configfile %s",
-			progname,name, configFile);
+	sgLogFatal("%s: FATAL: ACL %s is defined in configfile %s",progname,name,configFile);
       }
     }
     */
@@ -1995,7 +2150,7 @@ void sgAcl(char *name, char *value, int within)
     def++;
   } else {
     if((source = sgSourceFindName(name)) == NULL && !def){
-      sgLogFatalError("%s: ACL source %s is not defined in configfile %s",
+      sgLogFatal("%s: FATAL: ACL source %s is not defined in configfile %s",
 		      progname,name, configFile);
     }
   }
@@ -2012,7 +2167,7 @@ void sgAcl(char *name, char *value, int within)
   acl->next = NULL;
   if(value != NULL){
     if((time = sgTimeFindName(value)) == NULL){
-      sgLogFatalError("%s: ACL time %s is not defined in configfile %s",
+      sgLogFatal("%s: FATAL: ACL time %s is not defined in configfile %s",
 		      progname,value, configFile);
     }
     acl->time = time;
@@ -2028,20 +2183,28 @@ void sgAcl(char *name, char *value, int within)
 
 void sgAclSetValue (char *what, char *value, int allowed)
 {
+  char *subval = NULL;
   struct Destination *dest = NULL;
   struct sgRewrite *rewrite = NULL;
   struct AclDest *acldest;
   int type = ACL_TYPE_TERMINATOR;
   if(!strcmp(what,"pass")){
     if(!strcmp(value,"any") || !strcmp(value,"all"))
+    {
       allowed = 1;
+    }
     else if(!strcmp(value,"none"))
+    {
       allowed=0;
+    }
     else if(!strcmp(value,"in-addr")){
       type = ACL_TYPE_INADDR;
+    } else if (!strncmp(value,"dnsbl",5)) {
+      subval = strstr(value,":");
+      type = ACL_TYPE_DNSBL;
     } else {
       if((dest = sgDestFindName(value)) == NULL){
-	sgLogFatalError("%s: ACL destination %s is not defined in configfile %s",
+	sgLogFatal("%s: FATAL: ACL destination %s is not defined in configfile %s",
 			progname,value, configFile);
       }
       type = ACL_TYPE_DEFAULT;
@@ -2053,6 +2216,24 @@ void sgAclSetValue (char *what, char *value, int allowed)
     acldest->dest = dest;
     acldest->access = allowed;
     acldest->type = type;
+    if (type == ACL_TYPE_DNSBL)
+    {
+      if ((subval==NULL) || (subval[1])=='\0')//Config does not define which dns domain to use
+      {
+        acldest->dns_suffix = (char *) sgCalloc(1,strlen(".black.uribl.com")+1);
+	strcpy(acldest->dns_suffix, ".black.uribl.com");
+      } else {
+        subval=subval+1;
+	if (strspn(subval,".-abcdefghijklmnopqrstuvwxyz0123456789") != strlen(subval)  )
+	  {
+	   sgLogFatal("%s: FATAL: provided dnsbl \"%s\" doesn't look like a valid domain suffix",progname,subval);
+          }
+	acldest->dns_suffix = (char *) sgCalloc(1,strlen(subval)+1);
+	strcpy(acldest->dns_suffix, ".");
+	strcat(acldest->dns_suffix,subval);
+      }
+    }
+
     acldest->next = NULL;
     if(lastAcl->pass == NULL){
       lastAcl->pass = acldest;
@@ -2068,7 +2249,7 @@ void sgAclSetValue (char *what, char *value, int allowed)
       lastAcl->rewrite = NULL;
     } else {
       if((rewrite = sgRewriteFindName(value)) == NULL){
-	sgLogFatalError("%s: Rewrite %s is not defined in configfile %s",
+	sgLogFatal("%s: FATAL: Rewrite %s is not defined in configfile %s",
 			progname,value, configFile);
       }
       lastAcl->rewriteDefault = 0;
@@ -2134,6 +2315,56 @@ struct Acl *sgAclCheckSource(struct Source *source)
   return acl;
 }
 
+char *strip_fqdn(char *domain)
+{
+  char *result;
+  result=strstr(domain,".");
+  if (result == NULL)
+    return NULL;
+  return (result+1);
+}
+
+int is_blacklisted(char *domain, char *suffix)
+{
+  char target[MAX_BUF];
+  struct addrinfo *res;
+  int result;
+  //Copying domain to target
+  if (strlen(domain)+strlen(suffix)+1>MAX_BUF)
+  {
+    //Buffer overflow risk - just return and accept
+#ifndef SUPPRESS_LOGGING
+    if( globalDebug == 1 ) { sgLogError("dnsbl : too long domain name - accepting without actual check"); }
+#endif
+     return(0);
+   }
+   strncpy(target,domain,strlen(domain)+1);
+   strcat(target,suffix);
+
+   result = getaddrinfo(target,NULL,NULL,&res);
+   if (result == 0) //Result is defined
+   {
+     freeaddrinfo(res);
+     return 1;
+   }
+   //If anything fails (DNS server not reachable, any problem in the resolution,
+   //let's not block anything.
+   return 0;
+}
+
+int blocked_by_dnsbl(char *domain, char *suffix)
+{
+  char *dn=domain;
+  while ((dn !=NULL) && (strchr(dn,'.')!=NULL)) //No need to lookup "com.black.uribl.com"
+  {
+    if (is_blacklisted(dn,suffix))
+      return(1);
+    dn=strip_fqdn(dn);
+  }
+  return 0;
+}
+
+
 char *sgAclAccess(struct Source *src, struct Acl *acl, struct SquidInfo *req)
 {
   int access = 1,result;
@@ -2155,6 +2386,16 @@ char *sgAclAccess(struct Source *src, struct Acl *acl, struct SquidInfo *req)
       if(aclpass->type == ACL_TYPE_INADDR){
 	if(req->dot){
 	  access=aclpass->access;
+	  break;
+	}
+	continue;
+      }
+      // http://www.yahoo.fr/ 172.16.2.32 - GET
+      if(aclpass->type == ACL_TYPE_DNSBL){
+        if (req->dot)
+	  continue;
+	if (blocked_by_dnsbl(req->domain, aclpass->dns_suffix)){
+	  access=0;
 	  break;
 	}
 	continue;
@@ -2193,7 +2434,7 @@ char *sgAclAccess(struct Source *src, struct Acl *acl, struct SquidInfo *req)
 	}
       }
       if(aclpass->dest->regExp != NULL && access){
-	if((result = sgRegExpMatch(aclpass->dest->regExp,req->strippedurl)) != 0){
+	if((result = sgRegExpMatch(aclpass->dest->regExp,req->furl)) != 0){
 	  if(aclpass->access){
 	    access++;
 	    break;
@@ -2259,7 +2500,7 @@ char *sgAclAccess(struct Source *src, struct Acl *acl, struct SquidInfo *req)
 
 void yyerror(char *s)
 {
-  sgLogFatalError("%s in configfile %s line %d",s,configFile,lineno);
+  sgLogFatal("FATAL: %s in configfile %s line %d",s,configFile,lineno);
 }
 
 
@@ -2280,25 +2521,29 @@ int sgFindUser(struct Source *src, char *ident, struct UserInfo **rval)
        struct UserInfo *userinfo;
        static struct UserInfo info;
 
+#ifndef SUPPRESS_LOGGING
+       sgLogError("DEBUG: sgFindUser called with: %s", ident);
+#endif
+
        /* defined in the userDB? */
        if(defined(src->userDb, ident, (char **) &userinfo) == 1) {
 #ifdef HAVE_LIBLDAP
-               /* LDAP user? */
-               if(!userinfo->ldapuser) {
-                       *rval = userinfo;
-                       return 1;       /* no, return regular user */
-               }
+       /* LDAP user? */
+       if(!userinfo->ldapuser) {
+          *rval = userinfo;
+           return 1;       /* no, return regular user */
+       }
 
-               /* from here on, we assume it is an LDAP user */
+       /* from here on, we assume it is an LDAP user */
 
-               /* is this info valid? */
-               interval = sgSettingGetValue("ldapcachetime");
-               CacheTimeOut = atoi(interval != NULL ? interval : "0");
-               if((time(NULL) - userinfo->cachetime) <= CacheTimeOut) {
-                       if(userinfo->found)
-                               *rval = userinfo;
-                       return userinfo->found; /* yes */
-               }
+       /* is this info valid? */
+       interval = sgSettingGetValue("ldapcachetime");
+       CacheTimeOut = atoi(interval != NULL ? interval : "0");
+       if((time(NULL) - userinfo->cachetime) <= CacheTimeOut) {
+          if(userinfo->found)
+                *rval = userinfo;
+          return userinfo->found; /* yes */
+       }
 #endif
        }
        else {
@@ -2309,9 +2554,9 @@ int sgFindUser(struct Source *src, char *ident, struct UserInfo **rval)
 
 #ifdef HAVE_LIBLDAP
        /* loop through all LDAP URLs and do a search */
-       for(i = 0; i < src->ldapurlcount; i++) {
+       for(i = 0; i < src->ldapuserurlcount; i++) {
 
-               found = sgDoLdapSearch(src->ldapurls[i], ident);
+               found = sgDoLdapSearch(src->ldapuserurls[i], ident);
 
                /* cache every search in the user database */
                /* this should be safe, since squid only sends real idents
@@ -2351,6 +2596,90 @@ int sgFindUser(struct Source *src, char *ident, struct UserInfo **rval)
 }
 
 #ifdef HAVE_LIBLDAP
+/* returns 1 if ip was found for the specified Source
+ * returns a pointer to a IpInfo structure when found
+ * handles all LDAP sub-lookups and caching
+ */
+#if __STDC__
+int sgFindIp(struct Source *src, char *net, struct IpInfo **rval)
+#else
+int sgFindIp(src, net, rval)
+       struct Source *src;
+       char *net;
+       struct IpInfo **rval;
+#endif
+
+{
+       int i, found;
+       int CacheTimeOut;
+       char *interval;
+       struct IpInfo *ipinfo;
+       static struct IpInfo info;
+/* DEBUG
+  sgLogError("debug : sgfindip called with: %s", net);
+*/
+       /* defined in the ipDB? */
+       if(defined(src->ipDb, net, (char **) &ipinfo) == 1) {
+               /* LDAP ip? */
+               if(!ipinfo->ldapip) {
+                       *rval = ipinfo;
+                       return 1;       /* no, return regular ip */
+               }
+
+               /* from here on, we assume it is an LDAP ip */
+
+               /* is this info valid? */
+               interval = sgSettingGetValue("ldapcachetime");
+               CacheTimeOut = atoi(interval != NULL ? interval : "0");
+               if((time(NULL) - ipinfo->cachetime) <= CacheTimeOut) {
+                       if(ipinfo->found)
+                               *rval = ipinfo;
+                       return ipinfo->found; /* yes */
+               }
+       }
+       else {
+               ipinfo = NULL;        /* no record defined, must add our own*/
+       }
+
+       found = 0;                      /* assume not found */
+
+       /* loop through all LDAP URLs and do a search */
+       for(i = 0; i < src->ldapipurlcount; i++) {
+
+               found = sgDoLdapSearch(src->ldapipurls[i], net);
+
+               /* cache every search in the ip database */
+               /* this should be safe, since squid only sends real ip adresses (?) */
+               /* any record defined from above? */
+               if(ipinfo == NULL) {
+                       /* no, must use our own memory */
+                       ipinfo = &info;
+                       info.status = 0;
+                       info.time = 0;
+                       info.consumed = 0;
+                       info.last = 0;
+                       info.ldapip = 1;
+                       info.found = found;
+                       info.cachetime = time(NULL);
+               }
+               else {
+                       /* yes, just update the found flag */
+                       ipinfo->found = found;
+                       ipinfo->cachetime = time(NULL);
+               }
+
+               sgDbUpdate(src->ipDb, net, (char *) ipinfo,
+                       sizeof(struct IpInfo));
+               // DEBUG
+               sgLogError("Added LDAP source: %s", net);
+
+               if(found) {
+                       *rval = ipinfo;
+                       break;
+               }
+       }
+       return found;
+}
 
 static int get_ldap_errno(LDAP *ld)
 {
@@ -2457,7 +2786,7 @@ int sgDoLdapSearch(const char *url, const char *username)
                        &protoversion) != LDAP_OPT_SUCCESS)
                {
                        /* this will enter emergency mode */
-                       sgLogFatalError("%s: ldap_set_option failed: %s",
+                       sgLogFatal("%s: FATAL: ldap_set_option failed: %s",
                                progname, ldap_err2string(get_ldap_errno(ld)));
                }
        }

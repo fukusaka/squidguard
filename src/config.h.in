@@ -118,17 +118,23 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
+/* no description */
+#undef SQUIDGUARD_LOGFAC
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
 /* no description */
-#undef SUPRESS_LOGGING
+#undef SUPPRESS_LOGGING
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
+
+/* Defined if SYSLOG support should be compiled */
+#undef USE_SYSLOG
 
 /* Version number of package */
 #undef VERSION

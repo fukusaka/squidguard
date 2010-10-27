@@ -49,6 +49,7 @@
 #define ACL_TYPE_DEFAULT    1
 #define ACL_TYPE_TERMINATOR 2
 #define ACL_TYPE_INADDR     3
+#define ACL_TYPE_DNSBL      4
 
 #define REQUEST_TYPE_REWRITE    1
 #define REQUEST_TYPE_REDIRECT   2
@@ -192,6 +193,29 @@ struct Ip {
   struct Ip *next;
 };
 
+/* ldapip */
+#ifdef HAVE_LIBLDAP
+  /* LDAP tracking */
+struct IpInfo {
+  /* quota tracking */
+  time_t time;
+  time_t last;
+  int consumed;
+  char status;
+  int ldapip;                        /* bool: 1 if ip loaded from LDAP */
+  int found;                   /* bool: we also cache if not found in LDAP */
+  time_t cachetime;            /* time this item was added to cache */
+};
+#endif
+
+struct IpQuota {
+  time_t seconds;
+  int renew;
+  time_t sporadic;
+};
+/* ldapip */
+
+
 struct Setting {
   char *name;
   char *value;
@@ -218,6 +242,7 @@ struct Time {
 };
 
 struct Destination {
+  //int syslogStatus;
   char *name;
   int active;
   char *domainlist;
@@ -247,8 +272,12 @@ struct Source {
   struct UserQuota userquota;
   struct LogFile *logfile;
 #ifdef HAVE_LIBLDAP
-  char **ldapurls;                     /* dynamic array of url strings */
-  int ldapurlcount;                    /* current size of pointer array */
+  struct sgDb *ipDb;
+  struct IpQuota ipquota;
+  char **ldapuserurls;                     /* dynamic array of url strings */
+  int ldapuserurlcount;                    /* current size of pointer array */
+  char **ldapipurls;                     /* dynamic array of url strings */
+  int ldapipurlcount;                    /* current size of pointer array */
 #endif
   struct Source *next;
 };
@@ -271,6 +300,7 @@ struct Acl {
 
 struct AclDest {
   char *name;
+  char *dns_suffix;
   struct Destination *dest;
   int    access;
   int    type;
@@ -287,8 +317,11 @@ struct LogFileStat *sgLogFileStat (char *);
 
 void   sgReadConfig (char *);
 void   sgLog (struct LogFileStat *, char *, ...);
+void   sgLogDebug (char *, ...);
+void   sgLogNotice (char *, ...);
+void   sgLogWarn (char *, ...);
 void   sgLogError (char *, ...);
-void   sgLogFatalError (char *, ...);
+void   sgLogFatal (char *, ...);
 void   sgSetGlobalErrorLogFile ();
 void   sgLogRequest (struct LogFile *, struct SquidInfo *, struct Acl *, struct AclDest *, struct sgRewrite *, int);
 int    parseLine (char *, struct SquidInfo *);
@@ -311,6 +344,7 @@ void   sgSourceUserList (char *);
 void   sgSourceUserQuery (char *,char *,char *,char *);
 //#ifdef HAVE_LIBLDAP
 void   sgSourceLdapUserSearch (char *);
+void sgSourceLdapIpSearch(char *);
 //#endif
 void   sgSourceExecUserList (char *);
 void   sgSourceDomain (char *);
@@ -330,6 +364,9 @@ struct Destination *sgDestFindName (char *);
 void   sgDestTime (char *, int);
 
 void   sgSetting (char *, char *);
+#ifdef USE_SYSLOG
+void   sgSyslogSetting (char *);
+#endif
 struct Setting *sgSettingFindName (char *);
 char   *sgSettingGetValue (char *);
 
@@ -378,6 +415,8 @@ char   *niso (time_t);
 struct UserQuotaInfo *setuserquota ();
 void sgSourceUserQuota (char *, char *, char *);
 
+struct IpQuotaInfo *setipquota (); /* ldapip */
+void sgSourceIpQuota (char *, char *, char *); /*ldapip */
 
 void   *sgMalloc (size_t);
 void   *sgCalloc (size_t, size_t);
@@ -405,6 +444,7 @@ void   sgFreeLogFileStat (struct LogFileStat *);
 int    sgFindUser (struct Source *, char *, struct UserInfo **);
 #ifdef HAVE_LIBLDAP
 int    sgDoLdapSearch (const char *, const char *);
+int    sgFindIp (struct Source *, char *, struct IpInfo **);
 #endif
 
 int    expand_url (char *, size_t, const char *, const char *);

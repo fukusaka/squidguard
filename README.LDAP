@@ -1,12 +1,14 @@
-(LDAP functionality provided by applying the ldap patch from Chris Frey)
+(LDAP functionality provided by applying the ldap patch from Chris Frey
+ Extended for source IP address support by Denis Bonnenfant)
 
 
-LDAP User Grouping Support:
----------------------------
+LDAP User and Source IP Grouping Support:
+-----------------------------------------
 
 Squidguard now searches LDAP using specified LDAP search URLs whenever
-a username is not found in an existing user list.  The two new keywords
-in the squidguard.conf file that enable this are as follows:
+a username or an IP address is not found in an existing user list. The
+three new keywords in the squidguard.conf file that enable this are as
+follows:
 
     ldapusersearch     This keyword goes in the Source {} config block, and
                        specifies an LDAP URL to use to search for an unknown
@@ -24,6 +26,23 @@ in the squidguard.conf file that enable this are as follows:
                        even when a user name is not found.  The cache
                        is valid for ldapcachetime seconds.
 
+
+    ldapipsearch       This keyword goes in the Source {} config block, and
+                       specifies an LDAP URL to use to search for a source ip.
+
+                       You can specify multple LDAP URLs per Source block.
+
+                       Use '%s' to reference the ip in your LDAP URL.
+
+                       If the search returns a record, the ip is considered
+                       "found", otherwise the next URL in the same Source
+                       block is tried.
+
+                       Squidguard caches the "found" state of each search,
+                       even when an ip is not found.  The cache
+                       is valid for ldapcachetime seconds.
+      
+      
     ldapcachetime      This global keyword specifies the number of seconds
                        to cache LDAP search results before contacting
                        the LDAP server again.  This keyword is global and
@@ -124,6 +143,7 @@ src INTERNAL_LAN {
        user            dave,chris,john, marconi
        # uses the default binddn and bindpass above
        ldapusersearch  ldap://ldap.example.com/cn=squidguardusers,ou=groups,dc=example,dc=com?memberUid?sub?(&(objectclass=posixGroup)(memberUid=%s))
+       ldapipsearch ldap://ldap.example.com/ou=computers,dc=example,dc=com?iphostnumber?sub?(&(objectclass=iphost)(iphostnumber=%s))
 
        execuserlist    sed "s/:.*$//" /etc/passwd
        log             internal_lan
@@ -134,4 +154,6 @@ src INTERNAL_LAN {
 By: Chris Frey
 <cdfrey@netdirect.ca>
 2004/09/29
+
+LDAPIp by ldapip : Denis Bonnenfant, 2007.
 

@@ -2,7 +2,7 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
 
-  This software product, squidGuard, is copyrighted (C) 1998-2007
+  This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
@@ -17,6 +17,9 @@
 */
 
 #include "sg.h"
+#ifdef USE_SYSLOG
+#include <syslog.h>
+#endif
 
 struct Setting *lastSetting = NULL;
 struct Setting *Setting = NULL;                        /* linked list, Calloc */
@@ -66,6 +69,7 @@ int sig_hup = 0;
 int sig_alrm = 0;
 int sgtime = 0;
 char *globalLogDir = NULL;
+int globalSyslog = 0;
 
 
 int main(int    argc,
@@ -87,6 +91,9 @@ int main(int    argc,
   gettimeofday(&start_time, NULL);
   progname = argv[0];
   globalPid = getpid();
+#ifdef USE_SYSLOG
+openlog("squidGuard", LOG_PID | LOG_NDELAY | LOG_CONS, SQUIDGUARD_LOGFAC);
+#endif
   while ((ch = getopt(argc, argv, "hbduPC:t:c:v")) != EOF)
     switch (ch) {
     case 'd':
@@ -119,7 +126,7 @@ int main(int    argc,
 	fprintf(stderr,"-t date have to after 1970-01-01T01:00:00\n");
 	exit(0);
       }
-      sgLogError("squidGuard emulating date %s", niso(t));
+      sgLogDebug("DEBUG: squidGuard emulating date %s", niso(t));
       globalDebugTimeDelta = t - start_time.tv_sec;
       start_time.tv_sec = start_time.tv_sec + globalDebugTimeDelta;
       break;
@@ -133,13 +140,16 @@ int main(int    argc,
   sgSetGlobalErrorLogFile();
   sgReadConfig(configFile);
   sgSetGlobalErrorLogFile();
-  sgLogError("squidGuard %s started (%d.%03d)",
+  sgLogNotice("INFO: squidGuard %s started (%d.%03d)",
 	     VERSION, start_time.tv_sec, start_time.tv_usec/1000);
   if(globalUpdate || globalCreateDb != NULL){
-    sgLogError("db update done");
+    sgLogNotice("INFO: db update done");
     gettimeofday(&stop_time, NULL);
     stop_time.tv_sec = stop_time.tv_sec + globalDebugTimeDelta;
-    sgLogError("squidGuard stopped (%d.%03d)",stop_time.tv_sec,stop_time.tv_usec/1000);
+    sgLogNotice("INFO: squidGuard stopped (%d.%03d)",stop_time.tv_sec,stop_time.tv_usec/1000);
+#ifdef USE_SYSLOG
+    closelog ();
+#endif
     exit(0);
   }
   sgTimeElementSortEvents();
@@ -159,7 +169,7 @@ int main(int    argc,
 #endif
   gettimeofday(&ready_time, NULL);
   ready_time.tv_sec = ready_time.tv_sec + globalDebugTimeDelta;
-  sgLogError("squidGuard ready for requests (%d.%03d)",
+  sgLogNotice("INFO: squidGuard ready for requests (%d.%03d)",
 	     ready_time.tv_sec, ready_time.tv_usec/1000);
   tmp[MAX_BUF-1] = '\0';
   while(1) {
@@ -176,7 +186,7 @@ int main(int    argc,
 	continue;
       }
       if(parseLine(buf,&squidInfo) != 1){
-	sgLogError("Error parsing squid line: %s",buf);
+	sgLogError("ERROR: Error parsing squid line: %s",buf);
 	puts("");
       }
         else {
@@ -211,7 +221,7 @@ int main(int    argc,
 	    fprintf(stdout,"%s %s/%s %s %s\n",redirect,squidInfo.src,
 		    squidInfo.srcDomain,squidInfo.ident,
 		    squidInfo.method);
-            /* sgLogError("%s %s/%s %s %s\n",redirect,squidInfo.src,squidInfo.srcDomain,squidInfo.ident,squidInfo.method);  */
+            /* sgLogDebug("DEBUG: %s %s/%s %s %s\n",redirect,squidInfo.src,squidInfo.srcDomain,squidInfo.ident,squidInfo.method);  */
 	    break;
 	  }
 	} /*for(;;)*/
@@ -225,14 +235,20 @@ int main(int    argc,
     if(errno != EINTR){
       gettimeofday(&stop_time, NULL);
       stop_time.tv_sec = stop_time.tv_sec + globalDebugTimeDelta;
-      sgLogError("squidGuard stopped (%d.%03d)",stop_time.tv_sec,stop_time.tv_usec/1000);
+      sgLogNotice("INFO: squidGuard stopped (%d.%03d)",stop_time.tv_sec,stop_time.tv_usec/1000);
+#ifdef USE_SYSLOG
+      closelog ();
+#endif
       exit(2);
     }
 #endif
 #else
     gettimeofday(&stop_time, NULL);
     stop_time.tv_sec = stop_time.tv_sec + globalDebugTimeDelta;
-    sgLogError("squidGuard stopped (%d.%03d)",stop_time.tv_sec,stop_time.tv_usec/1000);
+    sgLogNotice("INFO: squidGuard stopped (%d.%03d)",stop_time.tv_sec,stop_time.tv_usec/1000);
+#ifdef USE_SYSLOG
+    closelog ();
+#endif
     exit(0);
 #endif
   }
@@ -255,5 +271,8 @@ void usage()
   fprintf(stderr, "  -P          : do not go into emergency mode when an error with the \n");
   fprintf(stderr, "                blacklists is encountered.\n");
 
+#ifdef USE_SYSLOG
+  closelog ();
+#endif
   exit(1);
 }

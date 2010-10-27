@@ -2,10 +2,8 @@
   By accepting this notice, you agree to be bound by the following
   agreements:
 
-  This software product, squidGuard, is copyrighted (C) 1998 by
-  ElTele Øst AS, Oslo, Norway, with all rights reserved.
-  With December 27th 2006 all rights moved to Christine Kronberg,
-  Shalla Secure Services.
+  This software product, squidGuard, is copyrighted (C) 1998-2009
+  by Christine Kronberg, Shalla Secure Services. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
@@ -44,7 +42,7 @@ void sgDbInit(struct sgDb *Db, char *file)
     strcat(dbfile,".db");
     if(stat(dbfile,&st) == 0){
       if(!createdb){
-	sgLogError("loading dbfile %s",dbfile);
+	sgLogNotice("INFO: loading dbfile %s",dbfile);
       }
     } else {
       if(!createdb){
@@ -56,11 +54,11 @@ void sgDbInit(struct sgDb *Db, char *file)
   /*since we are not sharing the db's, we does not nedd dbenv */
   //ret = db_init(Db->dbhome, &Db->dbenv);
   //if(ret)
-  //  sgLogFatalError("error db_init %s", strerror(ret));
+  //  sgLogFatal("FATAL: error db_init %s", strerror(ret));
   Db->entries = 1;
   Db->dbenv = NULL;
   if ((ret = db_create(&Db->dbp, Db->dbenv, 0)) != 0){
-    sgLogFatalError("Error db_create: %s", strerror(ret));
+    sgLogFatal("FATAL: Error db_create: %s", strerror(ret));
   }
   /*please feel free to experiment with cacesize and pagesize */
   //Db->dbp->set_cachesize(Db->dbp, 0, 1024 * 1024,0);
@@ -74,12 +72,12 @@ void sgDbInit(struct sgDb *Db, char *file)
     if ((ret =
          Db->dbp->open(Db->dbp, NULL, dbfile, NULL, DB_BTREE, flag, 0664)) != 0) {
       (void) Db->dbp->close(Db->dbp, 0);
-      sgLogFatalError("Error db_open: %s", strerror(ret));
+      sgLogFatal("FATAL: Error db_open: %s", strerror(ret));
     }
   } else {
     if ((ret =
          Db->dbp->open(Db->dbp, NULL, dbfile, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
-      sgLogFatalError("Error db_open: %s", strerror(ret));
+      sgLogFatal("FATAL: Error db_open: %s", strerror(ret));
     }
   }
   if(file != NULL){
@@ -98,19 +96,19 @@ void sgDbInit(struct sgDb *Db, char *file)
 	//Db->dbenv->close(Db->dbenv, 0);
 	Db->dbenv = NULL;
       } else {
-	sgLogError("create new dbfile %s",dbfile);
+	sgLogNotice("INFO: create new dbfile %s",dbfile);
 	(void)Db->dbp->sync(Db->dbp,0);
       }
     }
     if(globalUpdate){
       if(dbfile == NULL){
-        sgLogError("error update dbfile %s.db. file does not exists, use -C to create",file);
+        sgLogError("ERROR: update dbfile %s.db. file does not exists, use -C to create",file);
       } else {
         update = (char *) sgMalloc(strlen(file) + 6);
         strcpy(update,file);
         strcat(update,".diff");
         if(stat(update,&st) == 0){
-       	  sgLogError("update dbfile %s",dbfile);
+       	  sgLogNotice("INFO: update dbfile %s",dbfile);
   	  sgDbLoadTextFile(Db,update,1);
         }
         (void)Db->dbp->sync(Db->dbp,0);
@@ -125,13 +123,16 @@ int defined(struct sgDb *Db, char *request, char **retval)
 {
   int errno, result = 0 ;
   u_int32_t   dbmethod = DB_SET_RANGE;
-  char *data = NULL;
+  char *data1 = NULL;
+  char *data2 = NULL;
   static char dbdata[MAX_BUF];
   char *req = request, r[MAX_BUF + 1];
+
   if ((errno = Db->dbp->cursor(Db->dbp, NULL, &Db->dbcp,0)) != 0) {
-    sgLogFatalError("cursor: %s", strerror(errno));
+    sgLogFatal("FATAL: cursor: %s", strerror(errno));
     exit (1);
   }
+
   switch ( Db->type ) {
   case SGDBTYPE_DOMAINLIST:
     r[0]='.'; r[1] = '\0';
@@ -144,70 +145,94 @@ int defined(struct sgDb *Db, char *request, char **retval)
   default:
     break;
   }
+
   memset(&Db->key, 0, sizeof(DBT));
   memset(&Db->data, 0, sizeof(DBT));
   Db->key.data = req;
   Db->key.size = strlen(req);
   errno= Db->dbcp->c_get(Db->dbcp, &Db->key, &Db->data, dbmethod);
-  switch (errno ) {
-  case EAGAIN:                    /* Deadlock. */
-    break;
-  case 0:                         /* Success. */
-    data =(char *)  sgCalloc(1,Db->key.size + 1);
-    strncpy(data, Db->key.data, Db->key.size);
-    if(!strncmp(req,data,Db->key.size)){
-      result = 1;
-      free(data);
-    } else {
-      free(data);
-      switch (errno = Db->dbcp->c_get(Db->dbcp, &Db->key, &Db->data, DB_PREV)) {
-      case DB_NOTFOUND:
-	errno = Db->dbcp->c_get(Db->dbcp, &Db->key, &Db->data, DB_FIRST);
-	/* ONTOP */
-	break;
-      case 0:
-	data =(char *)  sgCalloc(1,Db->key.size + 1);
-	strncpy(data, Db->key.data, Db->key.size);
-	/* PPREV */
-	if(Db->type == SGDBTYPE_DOMAINLIST){
-	  if(!sgStrRncmp(data,req,Db->key.size))
-	    result=1;
-	} else {
-	  if(!strncmp(data,req,Db->key.size))
-	    result = 1;
-	}
-	free(data);
-      }
-    }
-    break;
-  case DB_NOTFOUND:               /* Not found. */
-    if (Db->type == SGDBTYPE_USERLIST) {
-      result = 0;
+
+
+  switch (errno )
+    {
+    case EAGAIN:                    /* Deadlock. */
+      break;
+    case 0:                         /* Success. */
+      data1 =(char *)  sgCalloc(1,Db->key.size + 1);
+      strncpy(data1, Db->key.data, Db->key.size);
+      if (!strncmp(req,data1,Db->key.size))
+        {
+        result = 1;
+        }
+      else
+        {
+        switch (errno = Db->dbcp->c_get(Db->dbcp, &Db->key, &Db->data, DB_PREV))
+          {
+          case DB_NOTFOUND:
+            errno = Db->dbcp->c_get(Db->dbcp, &Db->key, &Db->data, DB_FIRST);
+            /* ONTOP */
+            break;
+          case 0:
+            data2 =(char *)  sgCalloc(1,Db->key.size + 1);
+            strncpy(data2, Db->key.data, Db->key.size);
+            /* PPREV */
+            if(Db->type == SGDBTYPE_DOMAINLIST)
+              {
+              if((sgStrRncmp(data1,data2,Db->key.size) != 0) && (!sgStrRncmp(data2,req,Db->key.size)))
+                {
+                result=1;
+                }
+              }
+            else
+              {
+              if((strncmp(data1,data2,Db->key.size) != 0) && (!strncmp(data2,req,Db->key.size)))
+                {
+                result = 1;
+                }
+              }
+            free(data2);
+          }
+        }
+      free(data1);
+      break;
+    case DB_NOTFOUND:               /* Not found. */
+      if (Db->type == SGDBTYPE_USERLIST)
+        {
+        result = 0;
+        break;
+        }
+      switch (errno = Db->dbcp->c_get(Db->dbcp, &Db->key, &Db->data, DB_LAST))
+        {
+        case DB_NOTFOUND:
+          result = DB_NOTFOUND;
+          break;
+        case 0:
+          data1 =(char *)  sgCalloc(1,Db->key.size + 1);
+          strncpy(data1, Db->key.data, Db->key.size);
+          if(Db->type == SGDBTYPE_DOMAINLIST)
+            {
+            if(!sgStrRncmp(data1,req,Db->key.size))
+              {
+              result=1;
+              }
+            }
+          else
+            {
+            if(!strncmp(data1,req,Db->key.size))
+              {
+              result = 1;
+              }
+            }
+          free(data1);
+          break;
+        }
       break;
     }
-    switch (errno = Db->dbcp->c_get(Db->dbcp, &Db->key, &Db->data, DB_LAST)){
-    case DB_NOTFOUND:
-      result = DB_NOTFOUND;
-      break;
-    case 0:
-      data =(char *)  sgCalloc(1,Db->key.size + 1);
-      strncpy(data, Db->key.data, Db->key.size);
-      if(Db->type == SGDBTYPE_DOMAINLIST){
-	if(!sgStrRncmp(data,req,Db->key.size))
-	  result=1;
-      } else {
-	if(!strncmp(data,req,Db->key.size))
-	  result = 1;
-      }
-      free(data);
-      break;
-    }
-    break;
-  }
+
   if(result == 1)
     if(retval != NULL && Db->data.size > 1){
       if(Db->data.size >= sizeof(dbdata))
-        sgLogFatalError("Data size too large in defined()");
+        sgLogFatal("FATAL: Data size too large in defined()");
       memcpy(dbdata,Db->data.data,Db->data.size);
       *(dbdata + Db->data.size) = '\0';
       *retval = dbdata;
@@ -288,7 +313,7 @@ void sgDbLoadTextFile(struct sgDb *Db, char *filename, int update)
 
   dbp = Db->dbp;
   if ((fp = fopen(filename, "r")) == NULL) {
-    sgLogFatalError("%s: %s", filename, strerror(errno));
+    sgLogFatal("FATAL: %s: %s", filename, strerror(errno));
   }
   else {
     if ( showBar == 1 ) {
@@ -375,13 +400,13 @@ void sgDbLoadTextFile(struct sgDb *Db, char *filename, int update)
         entries++;
 	break;
       default:
-	sgLogFatalError("sgDbLoadTextFile: put: %s", strerror(errno));
+	sgLogFatal("FATAL: sgDbLoadTextFile: put: %s", strerror(errno));
 	break;
       }
     }
   }
   if(update){
-    sgLogError("update: added %d entries, deleted %d entries",added,deleted);
+    sgLogNotice("INFO: update: added %d entries, deleted %d entries",added,deleted);
   }
   if ( showBar == 1 ) {
     finishProgressBar();
@@ -408,7 +433,7 @@ void sgDbUpdate(struct sgDb *Db, char *key, char *value, size_t len)
     Db->data.size = 8 ;
   } else {
     if(len > sizeof(value_buf))
-      sgLogFatalError("Buffer too large in sgDbUpdate()");
+      sgLogFatal("FATAL: Buffer too large in sgDbUpdate()");
     memcpy(value_buf,value, len);
     Db->data.data = value_buf;
     Db->data.size = len ;
@@ -418,10 +443,10 @@ void sgDbUpdate(struct sgDb *Db, char *key, char *value, size_t len)
   case 0:
     break;
   case DB_KEYEXIST:
-    /*sgLogError("%s: key already exists", key_buf);*/
+    /*sgLogError("ERROR: %s: key already exists", key_buf);*/
     break;
   default:
-    sgLogFatalError("sgDbUpdate: put: %s", strerror(errno));
+    sgLogFatal("FATAL: sgDbUpdate: put: %s", strerror(errno));
     break;
   }
 }

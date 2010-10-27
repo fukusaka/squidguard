@@ -1,17 +1,17 @@
 /*
   By accepting this notice, you agree to be bound by the following
   agreements:
-  
-  This software product, squidGuard, is copyrighted (C) 1998-2007
+
+  This software product, squidGuard, is copyrighted (C) 1998-2009
   by Christine Kronberg, Shalla Secure Services. All rights reserved.
- 
+
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License (version 2) as
   published by the Free Software Foundation.  It is distributed in the
   hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
   PURPOSE.  See the GNU General Public License (GPL) for more details.
-  
+
   You should have received a copy of the GNU General Public License
   (GPL) along with this program.
 */
@@ -33,7 +33,7 @@ void sgReloadConfig()
   struct Source *src;
   struct Destination *dest;
   sig_hup = 0;
-  sgLogError("got sigHUP reload config");
+  sgLogWarn("WARN: Received sigHUP, reloaded configuration");
   for(sg = LogFileStat; sg != NULL; sg = sg->next){ /* closing logfiles */
     if(sg->fd == stderr || sg->fd == stdout) {
       continue;
@@ -82,7 +82,7 @@ int parseLine(char *line, struct SquidInfo *s)
   int trailingdot = 0;
   size_t strsz;
   int ndx = 0;
-  
+
   field = strtok(line,"\t ");
   /*field holds each fetched url*/
   /* Let's first decode the url and then test it. Fixes bug2. */
@@ -91,16 +91,16 @@ int parseLine(char *line, struct SquidInfo *s)
   if(field == NULL)
     return 0;
   strcpy(s->orig,field);
-  /* Now convert url to lowercase chars */ 
+  /* Now convert url to lowercase chars */
   for(p=field; *p != '\0'; p++) {
     *p = tolower(*p);
   }
-  s->url[0] = s->protocol[0] = s->domain[0] = s->src[0] = s->ident[0] = 
+  s->url[0] = s->protocol[0] = s->domain[0] = s->src[0] = s->ident[0] =
     s->method[0] = s->srcDomain[0] = s->surl[0] =  '\0';
   s->dot = 0;
   s->port = 0;
   p = strstr(field,"://");
-  /* sgLogError("Debug P2 = %s", p); */
+  /* sgLogDebug("DEBUG P2 = %s", p); */
   if(p == NULL) { /* no protocol, defaults to http */
     strcpy(s->protocol,"unknown");
     p = field;
@@ -122,7 +122,7 @@ int parseLine(char *line, struct SquidInfo *s)
            ndx+=3; /* 3 == strlen("://"); */
           }
         }
-        
+
        /* if this char and the next char are slashes,
  *           then shift the rest of the string left one char */
        if('/' == p[ndx] && '/' == p[ndx+1]) {
@@ -131,7 +131,7 @@ int parseLine(char *line, struct SquidInfo *s)
          p[ndx+sz] = '\0';
           if(1 == report_once) {
 #ifndef SUPPRESS_LOGGING
-             sgLogError("Warning: Possible bypass attempt. Found multiple slashes where only one is expected: %s", s->orig); 
+            sgLogWarn("WARN: Possible bypass attempt. Found multiple slashes where only one is expected: %s", s->orig);
 #endif
             report_once--;
           }
@@ -145,7 +145,7 @@ int parseLine(char *line, struct SquidInfo *s)
          strncpy(p+ndx,p+ndx+1, sz);
          p[ndx+sz] = '\0';
 #ifndef SUPRESS_LOGGING
-         sgLogError("Warning: Possible bypass attempt. Found a trailing dot in the domain name: %s", s->orig);
+         sgLogWarn("WARN: Possible bypass attempt. Found a trailing dot in the domain name: %s", s->orig);
 #endif
       }
       else
@@ -160,10 +160,10 @@ int parseLine(char *line, struct SquidInfo *s)
   i=0;
   d = strchr(p,'/'); /* find domain end */
   /* Check for the single URIs (d) */
-  /* sgLogError("URL: %s", d); */
+  /* sgLogDebug("DEBUG: URL: %s", d); */
   e = d;
   a = strchr(p,'@'); /* find auth  */
-  if(a != NULL && ( a < d || d == NULL)) 
+  if(a != NULL && ( a < d || d == NULL))
     p = a + 1;
   a = strchr(p,':'); /* find port */;
   if(a != NULL && (a < d || d == NULL)){
@@ -236,11 +236,11 @@ int parseLine(char *line, struct SquidInfo *s)
     i++;
   }
   if(s->domain[0] == '\0') {
-/*    sgLogError("Debug: Domain is NULL: %s", s->orig); */
+/*    sgLogDebug("DEBUG: Domain is NULL: %s", s->orig); */
     return 0;
   }
   if(s->method[0] == '\0') {
-/*    sgLogError("Debug: Method is NULL: %s", s->orig); */
+/*    sgLogDebug("DEBUG: Method is NULL: %s", s->orig); */
     return 0;
   }
   return 1;
@@ -274,7 +274,7 @@ char *sgStripUrl (char *url)
   return newurl;
 }
 
-/* 
+/*
    returns a pointer to the domain part of a fully-qualified  hostname
    so www.abc.xyz.dom/index.html -> xyz.dom/index.html
 */
@@ -283,7 +283,7 @@ char *sgSkipHostPart (char *domain)
 {
   char *p = domain , *d1 = NULL, *d2 = NULL, *path = NULL;
   if((path = (char *) strchr(p,'/')) == NULL) {
-    path = domain; 
+    path = domain;
   }
   while((p = (char *) strchr(p,'.')) != NULL ){
     if(p > path && path != domain) {
@@ -303,7 +303,7 @@ void *sgMalloc(size_t elsize)
 {
   void *p;
   if((p=(void *) malloc(elsize)) == NULL){
-    sgLogFatalError("%s: %s",progname,strerror(ENOMEM));
+    sgLogFatal("FATAL: %s: %s",progname,strerror(ENOMEM));
     exit(1);
   }
   return (void *) p;
@@ -313,7 +313,7 @@ void *sgCalloc(size_t nelem, size_t elsize)
 {
   void *p;
   if((p=(void *) calloc(nelem,elsize)) == NULL){
-    sgLogFatalError("%s: %s",progname,strerror(ENOMEM));
+    sgLogFatal("FATAL: %s: %s",progname,strerror(ENOMEM));
     exit(1);
   }
   return (void *) p;
@@ -324,7 +324,7 @@ void *sgRealloc(void *ptr, size_t elsize)
 {
   void *p;
   if((p=(void *) realloc(ptr,elsize)) == NULL){
-    sgLogFatalError("%s: %s",progname,strerror(ENOMEM));
+    sgLogFatal("FATAL: %s: %s",progname,strerror(ENOMEM));
     exit(1);
   }
   return (void *) p;
@@ -338,7 +338,7 @@ void sgFree(void *ptr)
 
 /*
 
-checks the vality of an dotted address. 
+checks the vality of an dotted address.
 
 */
 
@@ -353,11 +353,11 @@ uint32_t *sgConvDot (char *dot)
     t = s;
     if (!isdigit(*t))
       return NULL;
-    while (isdigit(*t)) 
+    while (isdigit(*t))
       ++t;
-    if (*t == '.') 
+    if (*t == '.')
       *t++ = 0;
-    else if (*t) 
+    else if (*t)
       return NULL;
     if(shift < 0)
       return NULL;
@@ -386,7 +386,7 @@ int sgStrRcmp(char *a, char *b)
     a1--; b1--;
   }
   if(a1 == a && b1 == b)
-    return *a1 - *b1; 
+    return *a1 - *b1;
   if(a1 == a)
     return -1;
   if(b1 == b)
@@ -404,7 +404,7 @@ int sgStrRncmp(char *a, char *b, int blen)
     a1--; b1--; blen--;
   }
   if(a1 == a && b1 == b)
-    return *a1 - *b1; 
+    return *a1 - *b1;
   if(blen == 0)
     return *a1 - *b1;
   if(a1 == a)
@@ -438,7 +438,7 @@ int sgDomStrRcmp(char *p1, char *p2)
 /*
 
   Regexp functions
-  
+
 */
 
 struct sgRegExp *sgNewPatternBuffer(char *pattern, int flags)
@@ -557,14 +557,14 @@ char *sgRegExpSubst(struct sgRegExp *regexp, char *pattern)
 
 /*
 
-  
+
 
  */
 
 
 char *sgParseRedirect(char *redirect,
 		      struct SquidInfo *req,
-		      struct Acl *acl, 
+		      struct Acl *acl,
 		      struct AclDest *aclpass)
 {
   static char buf[MAX_BUF + MAX_BUF];
@@ -665,7 +665,7 @@ char *sgParseRedirect(char *redirect,
   }
   if(buf[0] == '\0')
     q = redirect;
-  else 
+  else
     q = buf;
   return q;
 }
@@ -677,19 +677,19 @@ void sgEmergency ()
   extern int passthrough;     /* from main.c */
   if (globalCreateDb == NULL) {
      if (passthrough == 1) {
-        sgLogError("Warning: Not going into emergency mode because -P was used");
+        sgLogWarn("WARN: Not going into emergency mode because -P was used");
 	fprintf( stderr, "              ****************\n");
         fprintf( stderr, "FAILURE! Check your log file for problems with the database files!\n" );
 	fprintf( stderr, "              ****************\n");
         exit(4);
      }
   }
-  sgLogError("Going into emergency mode");
+  sgLogError("ERROR: Going into emergency mode");
   while(fgets(buf, MAX_BUF, stdin) != NULL){
     puts("");
     fflush(stdout);
   }
-  sgLogError("ending emergency mode, stdin empty");
+  sgLogError("ERROR: Ending emergency mode, stdin empty");
   exit(-1);
 }
 
@@ -705,9 +705,9 @@ time_t iso2sec(char *date)
   t = (struct tm *) sgCalloc(1,sizeof(struct tm));
   sscanf(date,"%4d%*[.-]%2d%*[.-]%2d%*[T]%2d%*[:-]%2d%*[:-]%2d",
 	 &y,&m,&d,&H,&M,&S);
-  m--; 
+  m--;
   y = y - 1900;
-  if(y < 0 || m < 0 || m > 11 || d < 1 || d > 31 || H < 0 || H > 23 
+  if(y < 0 || m < 0 || m > 11 || d < 1 || d > 31 || H < 0 || H > 23
      || M < 0 || M > 59 || S < 0 || S > 59)
     return (time_t) -1;
   t->tm_year = y;
@@ -729,7 +729,7 @@ time_t date2sec(char *date)
   int y,m,d;
   t = (struct tm *) sgCalloc(1,sizeof(struct tm));
   sscanf(date,"%4d%*[.-]%2d%*[.-]%2d",&y,&m,&d);
-  m--; 
+  m--;
   y = y - 1900;
   if(y < 0 || m < 0 || m > 11 || d < 1 || d > 31)
     return (time_t) -1;
@@ -757,10 +757,10 @@ char *niso(time_t t)
 struct UserInfo *setuserinfo()
 {
   static struct UserInfo uq;
-  uq.status = 0; 
-  uq.time = 0; 
-  uq.consumed = 0; 
-  uq.last = 0; 
+  uq.status = 0;
+  uq.time = 0;
+  uq.consumed = 0;
+  uq.last = 0;
 #ifdef HAVE_LIBLDAP
   uq.ldapuser = 0;
   uq.found = 0;
@@ -769,3 +769,21 @@ struct UserInfo *setuserinfo()
   return &uq;
 }
 
+#ifdef HAVE_LIBLDAP
+#if __STDC__
+struct IpInfo *setipinfo()
+#else
+struct IpInfo *setipinfo()
+#endif
+{
+  static struct IpInfo uq;
+  uq.status = 0;
+  uq.time = 0;
+  uq.consumed = 0;
+  uq.last = 0;
+  uq.ldapip = 0;
+  uq.found = 0;
+  uq.cachetime = 0;
+  return &uq;
+}
+#endif

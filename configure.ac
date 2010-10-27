@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT([squidguard],[1.4],[nonmail@nosite])
+AC_INIT([squidguard],[1.5-alpha],[nonmail@nosite])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([1.10 foreign])
@@ -36,7 +36,17 @@ AC_DEFINE_UNQUOTED([DEFAULT_DBHOME],["$sg_dbhome"],[no description])
 
 AC_ARG_WITH(nolog,
 	AS_HELP_STRING([--with-nolog=ARG],[supress logging except for start and stop messages (default: ARG=no)]),
-	[AC_DEFINE([SUPRESS_LOGGING],[1],[no description])])
+	[AC_DEFINE([SUPPRESS_LOGGING],[1],[no description])])
+
+AC_ARG_WITH(syslog,
+	AS_HELP_STRING([--with-syslog=ARG],[send log messages to syslog for logging (default: ARG=no)]),
+	[syslog=$withval])
+
+AC_ARG_WITH(syslog_facility,
+	AS_HELP_STRING([--with-syslog-facility=FAC],[use FAC as syslog facility (default: FAC=LOCAL4)]),
+        [syslog_facility=$withval])
+
+test -z "$syslog_facility" && syslog_facility=LOCAL4
 
 AC_ARG_WITH(squiduser,
 	AS_HELP_STRING([--with-squiduser=USER],[do set squid user to USER (default: squid)]),
@@ -104,6 +114,34 @@ AC_CHECK_FUNCS(strerror, , AC_MSG_ERROR([No strerror library function.]))
 AC_CHECK_FUNCS(vsprintf, , AC_MSG_ERROR([No vsprintf library function.]))
 AC_CHECK_FUNCS(sigaction)
 AC_CHECK_FUNCS(signal)
+
+dnl Checks if runtime logmessages shall be suppressed.
+if test "$nolog" = "yes" -o "$nolog" = "true"; then
+echo "checking suppress runtime logging... yes"
+else
+echo "checking suppress runtime logging... no"
+fi
+
+dnl Checks if logmessages shall be send to syslog.
+if test "$syslog" = "yes" -o "$syslog" = "true"; then
+AC_CHECK_HEADER(syslog.h,,[
+        echo
+        echo "** No syslog.h found"
+        echo "   You cannot use syslog for logging."
+        echo
+        exit 1
+       ])
+echo "checking syslog for logging... yes"
+AC_DEFINE(USE_SYSLOG, 1, [Defined if SYSLOG support should be compiled])
+else
+echo "checking syslog for logging... no"
+fi
+AC_DEFINE_UNQUOTED(SQUIDGUARD_LOGFAC,[LOG_$syslog_facility],[no description])
+
+dnl Checks if squid runtime user is set
+if test "$squiduser"; then
+echo "checking squid runtime user ... $squiduser"
+fi
 
 dnl Check Berkley DB
 AC_ARG_WITH([db],
